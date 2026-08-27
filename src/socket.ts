@@ -1,5 +1,8 @@
 import { io } from "socket.io-client";
 
-const socket = io("https://socket-chat-backend-uowl.onrender.com");
-
-export default socket;
+export const socket = io(
+    "http://localhost:5000",
+    {
+        autoConnect: false
+    }
+);

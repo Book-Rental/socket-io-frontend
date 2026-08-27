@@ -7,7 +7,7 @@ import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 export default defineConfig({
   plugins: [react(), cssInjectedByJsPlugin()],
 
-   build: {
+  build: {
     lib: {
       entry: path.resolve(__dirname, "src/index.widget.tsx"),
       name: "SocketIOWidget",
@@ -20,8 +20,8 @@ export default defineConfig({
     minify: true,
   },
 
-   define: {
+  define: {
     "process.env": {},
   },
-  
+
 })
