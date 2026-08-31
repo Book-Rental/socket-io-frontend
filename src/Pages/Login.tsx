@@ -1,84 +1,113 @@
-import { FormEvent, useState } from "react";
+import { useForm } from "react-hook-form";
+import {
+    Rb_Button,
+    Rb_Icon,
+    Rb_Input,
+    Rb_Label,
+    Rb_Text,
+} from "@rentbook/rentbook-ui-lib";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+
+import { showToast } from "../utils/showToaster";
+import { useState } from "react";
 
 interface LoginProps {
     onLogin: (username: string) => void;
-    onRegister: () => void;
+}
+
+interface LoginFormData {
+    email: string;
+    password: string;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL as string;
 
-export default function Login({
-    onLogin,
-}: LoginProps) {
-
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-    const [email, setEmail] = useState(""); 
+export default function Login({ onLogin }: LoginProps) {
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        setError("");
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm<LoginFormData>();
 
-        if (!email.trim() || !password.trim()) {
-            setError("Email and password are required");
-            return;
-        }
-
+    const onSubmit = async (data: LoginFormData) => {
         setLoading(true);
 
         try {
             const res = await fetch(`${API_BASE}/api/auth/login`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email.trim(), password }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: data.email.trim(),
+                    password: data.password,
+                }),
             });
+
             const result = await res.json();
+
             if (!res.ok) {
-                setError(result?.message || "Invalid email or password");
-                setLoading(false);
-                return;
-            }
-            const userInfo = result?.data?.userInfo ?? result?.userInfo;
-            if (!userInfo?.email) {
-                setError("Unexpected response from server");
-                setLoading(false);
+                showToast(
+                    result?.message || "Invalid email or password",
+                    "error"
+                );
                 return;
             }
 
-            const displayName = userInfo.firstName || userInfo.email;
+            const userInfo =
+                result?.data?.userInfo ?? result?.userInfo;
+
+            if (!userInfo?.email) {
+                showToast("Unexpected response from server", "error");
+                return;
+            }
+
+            const displayName =
+                userInfo.firstName || userInfo.email;
+
+            showToast(`Welcome back, ${displayName}`, "success");
+
             onLogin(displayName);
-        } catch (err) {
-            console.error("Login error:", err);
-            setError("Could not reach the server. Please try again.");
+        } catch (error) {
+            console.error("Login error:", error);
+
+            showToast(
+                "Could not reach the server. Please try again.",
+                "error"
+            );
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
             <div className="w-full max-w-md">
-                <div className="text-center mb-8">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/20">
-                        <span className="text-3xl">
+
+                {/* Header */}
+                <div className="mb-6 text-center sm:mb-8">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/20 sm:h-16 sm:w-16">
+                        <span className="text-2xl sm:text-3xl">
                             💬
                         </span>
                     </div>
 
-                    <h1 className="text-3xl font-bold text-white">
+                    <h1 className="text-2xl font-bold text-white sm:text-3xl">
                         Socket Chat
                     </h1>
 
-                    <p className="mt-2 text-slate-400">
+                    <p className="mt-2 text-sm text-slate-400 sm:text-base">
                         Real-time communication demo
                     </p>
-
                 </div>
 
+                {/* Login Form */}
                 <form
-                    onSubmit={handleSubmit}
-                    className="rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl"
+                    onSubmit={handleSubmit(onSubmit)}
+                    className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8"
                 >
                     <h2 className="text-xl font-semibold text-white">
                         Welcome back
@@ -88,59 +117,106 @@ export default function Login({
                         Login to continue
                     </p>
 
-                    {error && (
-                        <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                            {error}
-                        </div>
-                    )}
-
+                    {/* Email */}
                     <div className="mt-6">
-                        <label className="mb-2 block text-sm font-medium text-slate-300">
+                        <Rb_Label
+                            htmlFor="email"
+                            required
+                            className="text-sm text-slate-300"
+                        >
                             Email
-                        </label>
+                        </Rb_Label>
 
-                        <input
+                        <Rb_Input
+                            id="email"
                             type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
                             placeholder="Enter email"
-                            className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none transition focus:border-indigo-500"
+                            borderClass="border !border-slate-700"
+                            error={!!errors.email}
+                            className="w-full rounded-xl bg-slate-800 px-4 py-3 text-white"
+                            {...register("email", {
+                                required: "Email is required",
+                                pattern: {
+                                    value:
+                                        /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+                                    message:
+                                        "Please enter a valid email address",
+                                },
+                            })}
                         />
+
+                        <Rb_Text
+                            variant="p"
+                            className="h-4 mt-1 text-xs leading-tight text-red-500"
+                        >
+                            {errors.email?.message || ""}
+                        </Rb_Text>
                     </div>
 
+                    {/* Password */}
                     <div className="mt-5">
-                        <label className="mb-2 block text-sm font-medium text-slate-300">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) =>
-                                setPassword(e.target.value)
-                            }
-                            placeholder="Enter password"
-                            className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none transition focus:border-indigo-500"
-                        />
+                        <div className="relative">
+                            <Rb_Label
+                                htmlFor="password"
+                                required
+                                className="text-sm text-slate-300"
+                            >
+                                Password
+                            </Rb_Label>
+
+                            <Rb_Input
+                                id="password"
+                                type={
+                                    showPassword
+                                        ? "text"
+                                        : "password"
+                                }
+                                placeholder="Enter password"
+                                borderClass="border !border-slate-700"
+                                error={!!errors.password}
+                                className="w-full rounded-xl bg-slate-800 px-4 py-3 pr-10 text-white"
+                                {...register("password", {
+                                    required: "Password is required",
+                                })}
+                            />
+
+                            <Rb_Button
+                                variant="primary"
+                                onClick={() =>
+                                    setShowPassword(!showPassword)
+                                }
+                                className="absolute right-3 top-[55%] -translate-y-1/2 text-gray-500"
+                            >
+                                <Rb_Icon
+                                    icon={
+                                        showPassword
+                                            ? FaEyeSlash
+                                            : FaEye
+                                    }
+                                    size={15}
+                                    color="#3b82f6"
+                                />
+                            </Rb_Button>
+
+                            <Rb_Text
+                                variant="p"
+                                className="h-4 mt-1 text-xs leading-tight text-red-500"
+                            >
+                                {errors.password?.message || ""}
+                            </Rb_Text>
+                        </div>
                     </div>
 
-                    <button
+                    {/* Login Button */}
+                    <Rb_Button
                         type="submit"
-                        disabled={loading}
-                        className="mt-6 w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+                        variant="primary"
+                        size="md"
+                        isLoading={loading}
+                        className="mt-6 w-full rounded-xl"
                     >
                         {loading ? "Logging in..." : "Login"}
-                    </button>
-
-                    {/* <p className="mt-6 text-center text-sm text-slate-400">
-                        Don't have an account?
-                        <button
-                            type="button"
-                            onClick={onRegister}
-                            className="ml-1 font-medium text-indigo-400 hover:text-indigo-300"
-                        >
-                            Register
-                        </button>
-                    </p> */}
+                    </Rb_Button>
                 </form>
             </div>
         </div>
