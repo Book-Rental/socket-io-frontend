@@ -202,6 +202,34 @@ export default function Rooms({username,}: RoomsProps) {
                 >
                     Join Room
                 </button>
+                
+                {joinedRooms.length > 0 && (
+                <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Your Rooms
+                    </p>
+                    <div className="mt-2 space-y-1">
+                        {joinedRooms.map((r) => (
+                            <button
+                                key={r}
+                                type="button"
+                                onClick={() => {
+                                    setActiveRoom(r);
+                                    fetchRoomHistory(r).then(setMessages);
+                                    setRoomUsers([]);
+                                }}
+                                className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
+                                    activeRoom === r
+                                        ? "bg-indigo-600 text-white"
+                                        : "text-slate-300 hover:bg-slate-800"
+                                }`}
+                            >
+                                #{r}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
                 {error && (
                     <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3">

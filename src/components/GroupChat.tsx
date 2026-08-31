@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { socket } from "../socket";
 import { Message } from "../utils/types";
-import { fetchGroupHistory } from "../utils/chatApi";
 interface GroupChatProps {
     username: string;
     onlineUsers: string[];
@@ -10,7 +9,7 @@ interface GroupChatProps {
 export default function GroupChat({ username, onlineUsers,}: GroupChatProps) {
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
-    const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
+    const [selectedRecipients] = useState<string[]>([])
 
     useEffect(() => {
         const handleBroadcastMessage = ( msg: Message ) => {
