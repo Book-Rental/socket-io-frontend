@@ -10,6 +10,33 @@ interface SidebarProps {
     onLogout: () => void;
 }
 
+const navigationItems: {
+    mode: ChatMode;
+    icon: string;
+    label: string;
+}[] = [
+        {
+            mode: "private",
+            icon: "👤",
+            label: "One-to-One",
+        },
+        {
+            mode: "broadcast",
+            icon: "📢",
+            label: "Broadcast",
+        },
+        {
+            mode: "rooms",
+            icon: "🏠",
+            label: "Rooms",
+        },
+        {
+            mode: "group",
+            icon: "👥",
+            label: "One-to-Many",
+        },
+    ];
+
 export default function Sidebar({
     username,
     mode,
@@ -19,202 +46,136 @@ export default function Sidebar({
     onUserSelect,
     onLogout,
 }: SidebarProps) {
+    const otherUsers = onlineUsers.filter(
+        (user) => user !== username
+    );
 
     return (
-        <aside className="flex h-screen w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-950">
-
-            {/* HEADER */}
-
-            <div className="border-b border-slate-800 p-5">
-
+        <aside className="flex h-auto max-h-[45vh] w-full shrink-0 flex-col border-b border-slate-800 bg-slate-950 sm:max-h-[40vh] lg:h-screen lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
+            <div className="shrink-0 border-b border-slate-800 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
-
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-lg sm:h-11 sm:w-11">
                         💬
                     </div>
 
-                    <div>
-                        <h1 className="font-bold text-white">
+                    <div className="min-w-0">
+                        <h1 className="truncate font-bold text-white">
                             Socket Chat
                         </h1>
 
-                        <p className="text-xs text-emerald-400">
-                            ● Connected
+                        <p className="flex items-center gap-1 text-xs text-emerald-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            Connected
                         </p>
                     </div>
-
                 </div>
-
             </div>
 
-
-            {/* USER */}
-
-            <div className="border-b border-slate-800 p-4">
-
+            <div className="shrink-0 border-b border-slate-800 p-3 sm:p-4">
                 <div className="flex items-center gap-3">
-
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500 font-bold text-white">
-                        {username
-                            .charAt(0)
-                            .toUpperCase()}
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-sm font-bold text-white sm:h-10 sm:w-10">
+                        {username.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="min-w-0">
-
-                        <p className="truncate font-medium text-white">
+                        <p className="truncate text-sm font-medium text-white">
                             {username}
                         </p>
 
-                        <p className="text-xs text-emerald-400">
+                        <p className="flex items-center gap-1 text-xs text-emerald-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                             Online
                         </p>
-
                     </div>
-
                 </div>
-
             </div>
 
-
-            {/* NAVIGATION */}
-
-            <div className="p-3">
-
-                <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <nav className="shrink-0 p-3">
+                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Communication
                 </p>
 
+                <div className="flex gap-2 overflow-x-auto lg:flex-col">
+                    {navigationItems.map((item) => (
+                        <button
+                            key={item.mode}
+                            type="button"
+                            onClick={() => onModeChange(item.mode)}
+                            className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition sm:py-3 lg:w-full ${mode === item.mode
+                                    ? "bg-indigo-600 text-white"
+                                    : "text-slate-300 hover:bg-slate-800"
+                                }`}
+                        >
+                            <span>{item.icon}</span>
+                            <span className="whitespace-nowrap">
+                                {item.label}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </nav>
 
-                <button
-                    onClick={() =>
-                        onModeChange("private")
-                    }
-                    className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${mode === "private"
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-300 hover:bg-slate-800"
-                        }`}
-                >
-                    <span>👤</span>
-                    One-to-One
-                </button>
-
-
-                <button
-                    onClick={() =>
-                        onModeChange("broadcast")
-                    }
-                    className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${mode === "broadcast"
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-300 hover:bg-slate-800"
-                        }`}
-                >
-                    <span>📢</span>
-                    Broadcast
-                </button>
-
-
-                <button
-                    onClick={() =>
-                        onModeChange("rooms")
-                    }
-                    className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${mode === "rooms"
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-300 hover:bg-slate-800"
-                        }`}
-                >
-                    <span>🏠</span>
-                    Rooms
-                </button>
-                <button
-                    onClick={() =>
-                        onModeChange("group")
-                    }
-                    className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${mode === "group"
-                            ? "bg-indigo-600 text-white"
-                            : "text-slate-300 hover:bg-slate-800"
-                        }`}
-                >
-                    <span>👥</span>
-                    One-to-Many
-                </button>
-
-            </div>
-
-
-            {/* ONLINE USERS */}
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-3">
-
-                <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+                <p className="mb-2 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Online Users
                 </p>
 
+                {otherUsers.length === 0 ? (
+                    <div className="rounded-xl bg-slate-900 px-3 py-4 text-center">
+                        <p className="text-sm text-slate-500">
+                            No other users online
+                        </p>
+                    </div>
+                ) : (
+                    <div className="flex gap-2 overflow-x-auto lg:flex-col">
+                        {otherUsers.map((user) => (
+                            <button
+                                key={user}
+                                type="button"
+                                onClick={() => {
+                                    onModeChange("private");
+                                    onUserSelect(user);
+                                }}
+                                className={`flex min-w-[150px] shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition lg:w-full ${selectedUser === user
+                                        ? "bg-slate-800"
+                                        : "hover:bg-slate-900"
+                                    }`}
+                            >
+                                <div className="relative shrink-0">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
+                                        {user
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                    </div>
 
-                {onlineUsers
-                    .filter(
-                        (user) => user !== username
-                    )
-                    .map((user) => (
-
-                        <button
-                            key={user}
-                            onClick={() => {
-                                onModeChange("private");
-                                onUserSelect(user);
-                            }}
-                            className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${selectedUser === user
-                                ? "bg-slate-800"
-                                : "hover:bg-slate-900"
-                                }`}
-                        >
-
-                            <div className="relative">
-
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
-                                    {user
-                                        .charAt(0)
-                                        .toUpperCase()}
+                                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-500" />
                                 </div>
 
-                                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-500" />
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-slate-200">
+                                        {user}
+                                    </p>
 
-                            </div>
-
-
-                            <div className="min-w-0">
-
-                                <p className="truncate text-sm font-medium text-slate-200">
-                                    {user}
-                                </p>
-
-                                <p className="text-xs text-emerald-400">
-                                    Online
-                                </p>
-
-                            </div>
-
-                        </button>
-
-                    ))}
-
+                                    <p className="text-xs text-emerald-400">
+                                        Online
+                                    </p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
-
-            {/* LOGOUT */}
-
-            <div className="border-t border-slate-800 p-3">
-
+            <div className="shrink-0 border-t border-slate-800 p-3">
                 <button
+                    type="button"
                     onClick={onLogout}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-slate-400 hover:bg-red-500/10 hover:text-red-400"
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-400 transition hover:bg-red-500/10 hover:text-red-400 sm:py-3"
                 >
-                    🚪
-                    Logout
+                    <span>🚪</span>
+                    <span>Logout</span>
                 </button>
-
             </div>
-
         </aside>
     );
 }
