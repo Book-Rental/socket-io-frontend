@@ -4,12 +4,15 @@ import { socket } from "../socket";
 import { Message } from "../utils/types";
 import { useRoomHistory } from "../hooks/queries/useRoomHistory";
 import { showToast } from "../utils/showToaster";
+import { BookRentalUser } from "../utils/userApi";
+import EmojiPickerButton from "./EmojiPickerButton";
 
 interface RoomsProps {
     username: string;
+    usersById: Record<string, BookRentalUser>;
 }
 
-export default function Rooms({ username }: RoomsProps) {
+export default function Rooms({ username, usersById }: RoomsProps) {
     const [roomId, setRoomId] = useState("");
     const [activeRoom, setActiveRoom] = useState<string | null>(null);
     const [message, setMessage] = useState("");
@@ -293,8 +296,8 @@ export default function Rooms({ username }: RoomsProps) {
                                                 <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                                                 <span className="truncate">
                                                     {user === username
-                                                        ? `${user} (You)`
-                                                        : user}
+                                                        ? `${usersById[user]?.firstName ?? user} (You)`
+                                                        : `${usersById[user]?.firstName ?? ""} ${usersById[user]?.lastName ?? ""}`.trim() || user}
                                                 </span>
                                             </div>
                                         ))
@@ -434,9 +437,7 @@ export default function Rooms({ username }: RoomsProps) {
                                                             }`}
                                                     >
                                                         <p className="text-xs font-semibold opacity-70">
-                                                            {mine
-                                                                ? "You"
-                                                                : msg.from}
+                                                            {mine ? "You" : `${usersById[msg.from]?.firstName ?? ""} ${usersById[msg.from]?.lastName ?? ""}`.trim() || msg.from}
                                                         </p>
 
                                                         <p className="mt-1 break-words text-sm leading-6">
@@ -466,7 +467,7 @@ export default function Rooms({ username }: RoomsProps) {
                             onSubmit={sendMessage}
                             className="shrink-0 border-t border-slate-800 bg-slate-950 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
                         >
-                            <div className="mx-auto flex w-full max-w-4xl gap-2 sm:gap-3">
+                            <div className="mx-auto flex w-full max-w-4xl items-center gap-2 sm:gap-33">
                                 <input
                                     value={message}
                                     onChange={(e) =>
@@ -474,6 +475,12 @@ export default function Rooms({ username }: RoomsProps) {
                                     }
                                     placeholder={`Message #${activeRoom}`}
                                     className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-indigo-500 sm:px-4"
+                                />
+
+                                <EmojiPickerButton
+                                    onEmojiSelect={(emoji) =>
+                                        setMessage((previous) => previous + emoji)
+                                    }
                                 />
 
                                 <button

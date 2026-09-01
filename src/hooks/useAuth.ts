@@ -1,52 +1,36 @@
 import { useState } from "react";
-
 import { socket } from "../socket";
 
-const API_BASE =
-    import.meta.env.VITE_API_URL as string;
+export interface CurrentUser {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+}
 
-const STORAGE_KEY =
-    "socket_chat_username";
+const API_BASE = import.meta.env.VITE_API_URL as string;
+const STORAGE_KEY = "socket_chat_username";
 
 export function useAuth() {
-    const [username, setUsername] =
-        useState<string | null>(() => {
-            return localStorage.getItem(
-                STORAGE_KEY
-            );
+    const [currentUser, setCurrentUser] =
+        useState<CurrentUser | null>(() => {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
         });
 
-    const handleLogin = (user: string) => {
-        console.log(
-            "Logged in user:",
-            user
-        );
-
-        /*
-         * Persist username so refresh
-         * does not log the user out.
-         */
-        localStorage.setItem(
-            STORAGE_KEY,
-            user
-        );
-
-        setUsername(user);
-
-        /*
-         * Connect Socket.IO after login.
-         */
+    const handleLogin = (user: CurrentUser) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+        setCurrentUser(user);
         if (!socket.connected) {
             socket.connect();
+        } else {
+            socket.emit("registerUser", user.id);
         }
     };
 
     const handleLogout = async () => {
         try {
-            console.log(
-                "Logging out:",
-                username
-            );
+            console.log("Logging out:", currentUser );
 
             const res = await fetch(
                 `${API_BASE}/api/auth/logout`,
@@ -56,54 +40,26 @@ export function useAuth() {
                 }
             );
 
-            const result =
-                await res.json();
+            const result = await res.json();
 
             if (!res.ok) {
-                console.error(
-                    "Logout failed:",
-                    result?.message ||
-                    "Logout failed"
-                );
-
+                console.error( "Logout failed:", result?.message || "Logout failed" );
                 return false;
             }
 
-            console.log(
-                "Logout successful:",
-                result
-            );
-
-            /*
-             * Disconnect Socket.IO.
-             */
+            console.log( "Logout successful:", result );
             socket.disconnect();
-
-            /*
-             * Remove persisted user.
-             */
-            localStorage.removeItem(
-                STORAGE_KEY
-            );
-
-            /*
-             * Clear React state.
-             */
-            setUsername(null);
-
+            localStorage.removeItem( STORAGE_KEY );
+            setCurrentUser(null);
             return true;
         } catch (error) {
-            console.error(
-                "Logout error:",
-                error
-            );
-
+            console.error( "Logout error:", error );
             return false;
         }
     };
 
     return {
-        username,
+        currentUser,
         handleLogin,
         handleLogout,
     };

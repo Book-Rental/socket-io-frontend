@@ -1,30 +1,29 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-
 import { socket } from "../socket";
 import { Message } from "../utils/types";
 import { usePrivateHistory } from "../hooks/queries/usePrivateHistory";
 import { showToast } from "../utils/showToaster";
+import EmojiPickerButton from "./EmojiPickerButton";
 
 interface OneToOneProps {
     username: string;
     selectedUser: string | null;
+    usersById: Record<string, { _id: string; firstName: string; lastName: string; email: string }>;
+    onlineUserIds: string[];
 }
 
-export default function OneToOne({
-    username,
-    selectedUser,
-}: OneToOneProps) {
+export default function OneToOne({ username, selectedUser, usersById, onlineUserIds }: OneToOneProps) {
+
+    const selectedUserName = selectedUser
+    ? `${usersById[selectedUser]?.firstName ?? ""} ${usersById[selectedUser]?.lastName ?? ""}`.trim() || selectedUser
+    : "";
+    const isSelectedUserOnline = selectedUser ? onlineUserIds.includes(selectedUser) : false;
     const [message, setMessage] = useState("");
     const [typingUser, setTypingUser] = useState<string | null>(null);
-
     const queryClient = useQueryClient();
 
-    const {
-        data: messages = [],
-        isLoading,
-        isError,
-    } = usePrivateHistory(username, selectedUser);
+    const { data: messages = [], isLoading, isError, } = usePrivateHistory(username, selectedUser);
 
     useEffect(() => {
         const handleMessage = (newMessage: Message) => {
@@ -182,16 +181,16 @@ export default function OneToOne({
             <header className="shrink-0 border-b border-slate-800 px-4 py-4 sm:px-6">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 font-semibold text-white sm:h-11 sm:w-11">
-                        {selectedUser.charAt(0).toUpperCase()}
+                        {selectedUserName.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="min-w-0">
                         <h2 className="truncate font-semibold text-white">
-                            {selectedUser}
+                            {selectedUserName}
                         </h2>
 
-                        <p className="text-xs text-emerald-400">
-                            ● Online
+                        <p className={`text-xs ${isSelectedUserOnline ? "text-emerald-400" : "text-slate-500"}`}>
+                            {isSelectedUserOnline ? "● Online" : "● Offline"}
                         </p>
                     </div>
                 </div>
@@ -245,7 +244,7 @@ export default function OneToOne({
 
                                 <p className="mt-1 text-sm text-slate-600">
                                     Start a conversation with{" "}
-                                    {selectedUser}
+                                    {selectedUserName}
                                 </p>
                             </div>
                         </div>
@@ -304,8 +303,14 @@ export default function OneToOne({
                         onChange={(e) =>
                             handleTyping(e.target.value)
                         }
-                        placeholder={`Message ${selectedUser}...`}
+                        placeholder={`Message ${selectedUserName}...`}
                         className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-indigo-500"
+                    />
+
+                    <EmojiPickerButton
+                        onEmojiSelect={(emoji) =>
+                            handleTyping(message + emoji)
+                        }
                     />
 
                     <button
