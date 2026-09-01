@@ -1,12 +1,15 @@
 import { ChatMode } from "../utils/types";
+import { BookRentalUser } from "../utils/userApi";
 
 interface SidebarProps {
-    username: string;
+    username: string;             // current user's id
+    displayName: string;
     mode: ChatMode;
-    onlineUsers: string[];
+    allUsers: BookRentalUser[];
+    onlineUserIds: string[];
     selectedUser: string | null;
     onModeChange: (mode: ChatMode) => void;
-    onUserSelect: (user: string) => void;
+    onUserSelect: (userId: string) => void;
     onLogout: () => void;
 }
 
@@ -39,17 +42,17 @@ const navigationItems: {
 
 export default function Sidebar({
     username,
+    displayName,
     mode,
-    onlineUsers,
+    allUsers,
+    onlineUserIds,
     selectedUser,
     onModeChange,
     onUserSelect,
     onLogout,
 }: SidebarProps) {
-    const otherUsers = onlineUsers.filter(
-        (user) => user !== username
-    );
 
+    const otherUsers = allUsers.filter((user) => user._id !== username);
     return (
         <aside className="flex h-auto max-h-[45vh] w-full shrink-0 flex-col border-b border-slate-800 bg-slate-950 sm:max-h-[40vh] lg:h-screen lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
             <div className="shrink-0 border-b border-slate-800 p-4 sm:p-5">
@@ -74,12 +77,12 @@ export default function Sidebar({
             <div className="shrink-0 border-b border-slate-800 p-3 sm:p-4">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-sm font-bold text-white sm:h-10 sm:w-10">
-                        {username.charAt(0).toUpperCase()}
+                        {displayName.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-white">
-                            {username}
+                            {displayName}
                         </p>
 
                         <p className="flex items-center gap-1 text-xs text-emerald-400">
@@ -123,45 +126,52 @@ export default function Sidebar({
                 {otherUsers.length === 0 ? (
                     <div className="rounded-xl bg-slate-900 px-3 py-4 text-center">
                         <p className="text-sm text-slate-500">
-                            No other users online
+                            No other users found
                         </p>
                     </div>
                 ) : (
                     <div className="flex gap-2 overflow-x-auto lg:flex-col">
-                        {otherUsers.map((user) => (
-                            <button
-                                key={user}
-                                type="button"
-                                onClick={() => {
-                                    onModeChange("private");
-                                    onUserSelect(user);
-                                }}
-                                className={`flex min-w-[150px] shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition lg:w-full ${selectedUser === user
-                                        ? "bg-slate-800"
-                                        : "hover:bg-slate-900"
-                                    }`}
-                            >
-                                <div className="relative shrink-0">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
-                                        {user
-                                            .charAt(0)
-                                            .toUpperCase()}
+                        {otherUsers.map((user) => {
+                            const isOnline = onlineUserIds.includes(user._id);
+                            const fullName = `${user.firstName} ${user.lastName}`;
+
+                            return (
+                                <button
+                                    key={user._id}
+                                    type="button"
+                                    onClick={() => {
+                                        onModeChange("private");
+                                        onUserSelect(user._id);
+                                    }}
+                                    className={`flex min-w-[150px] shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition lg:w-full ${selectedUser === user._id
+                                            ? "bg-slate-800"
+                                            : "hover:bg-slate-900"
+                                        }`}
+                                >
+                                    <div className="relative shrink-0">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
+                                            {user.firstName.charAt(0).toUpperCase()}
+                                        </div>
+
+                                        <span
+                                            className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 ${
+                                                isOnline ? "bg-emerald-500" : "bg-slate-600"
+                                            }`}
+                                        />
                                     </div>
 
-                                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-500" />
-                                </div>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-slate-200">
+                                            {fullName}
+                                        </p>
 
-                                <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-slate-200">
-                                        {user}
-                                    </p>
-
-                                    <p className="text-xs text-emerald-400">
-                                        Online
-                                    </p>
-                                </div>
-                            </button>
-                        ))}
+                                        <p className={`text-xs ${isOnline ? "text-emerald-400" : "text-slate-500"}`}>
+                                            {isOnline ? "Online" : "Offline"}
+                                        </p>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </div>

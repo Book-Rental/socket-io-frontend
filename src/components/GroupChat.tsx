@@ -1,19 +1,22 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-
 import { socket } from "../socket";
 import { Message } from "../utils/types";
 import { useGroupHistory } from "../hooks/queries/useGroupHistory";
 import { showToast } from "../utils/showToaster";
+import { BookRentalUser } from "../utils/userApi";
+import EmojiPickerButton from "./EmojiPickerButton";
 
 interface GroupChatProps {
     username: string;
     onlineUsers: string[];
+    usersById: Record<string, BookRentalUser>;
 }
 
 export default function GroupChat({
     username,
     onlineUsers,
+    usersById,
 }: GroupChatProps) {
     const [message, setMessage] = useState("");
 
@@ -129,28 +132,28 @@ export default function GroupChat({
                             </p>
                         ) : (
                             <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-x-visible">
-                                {otherOnlineUsers.map((user) => (
-                                    <div
-                                        key={user}
-                                        className="flex min-w-[160px] shrink-0 items-center gap-3 rounded-xl bg-slate-800 px-3 py-3 lg:min-w-0"
-                                    >
-                                        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
-                                            {user.charAt(0).toUpperCase()}
-
-                                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-800 bg-emerald-400" />
+                                {otherOnlineUsers.map((user) => {
+                                    const name = `${usersById[user]?.firstName ?? ""} ${usersById[user]?.lastName ?? ""}`.trim() || user;
+                                    return (
+                                        <div
+                                            key={user}
+                                            className="flex min-w-[160px] shrink-0 items-center gap-3 rounded-xl bg-slate-800 px-3 py-3 lg:min-w-0"
+                                        >
+                                            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
+                                                {name.charAt(0).toUpperCase()}
+                                                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-800 bg-emerald-400" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-medium text-slate-300">
+                                                    {name}
+                                                </p>
+                                                <p className="text-xs text-emerald-400">
+                                                    Online
+                                                </p>
+                                            </div>
                                         </div>
-
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium text-slate-300">
-                                                {user}
-                                            </p>
-
-                                            <p className="text-xs text-emerald-400">
-                                                Online
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -251,7 +254,7 @@ export default function GroupChat({
                                                     }`}
                                             >
                                                 <p className="text-xs font-semibold opacity-70">
-                                                    {mine ? "You" : msg.from}
+                                                    {mine ? "You" : `${usersById[msg.from]?.firstName ?? ""} ${usersById[msg.from]?.lastName ?? ""}`.trim() || msg.from}
                                                 </p>
 
                                                 <p className="mt-1 break-words text-sm leading-6">
@@ -281,12 +284,18 @@ export default function GroupChat({
                     onSubmit={sendMessage}
                     className="shrink-0 border-t border-slate-800 bg-slate-900 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
                 >
-                    <div className="mx-auto flex w-full max-w-4xl gap-2 sm:gap-3">
+                    <div className="mx-auto flex w-full max-w-4xl items-center gap-2 sm:gap-3">
                         <input
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Type a group message..."
                             className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-indigo-500 sm:px-4"
+                        />
+
+                        <EmojiPickerButton
+                            onEmojiSelect={(emoji) =>
+                                setMessage((previous) => previous + emoji)
+                            }
                         />
 
                         <button

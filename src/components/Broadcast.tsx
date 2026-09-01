@@ -11,6 +11,8 @@ import {
 import { socket } from "../socket";
 import { useBroadcastHistory } from "../hooks/queries/useBroadcastHistory";
 import { showToast } from "../utils/showToaster";
+import { BookRentalUser } from "../utils/userApi";
+import EmojiPickerButton from "./EmojiPickerButton";
 
 interface BroadcastMessage {
     id: string;
@@ -21,10 +23,11 @@ interface BroadcastMessage {
 
 interface BroadcastProps {
     username: string;
+    usersById: Record<string, BookRentalUser>;
 }
 
 export default function Broadcast({
-    username,
+    username, usersById 
 }: BroadcastProps) {
     const [message, setMessage] =
         useState("");
@@ -265,9 +268,7 @@ export default function Broadcast({
                                                             : "text-indigo-400"
                                                             }`}
                                                     >
-                                                        {mine
-                                                            ? "You"
-                                                            : msg.from}
+                                                       {mine ? "You" : `${usersById[msg.from]?.firstName ?? ""} ${usersById[msg.from]?.lastName ?? ""}`.trim() || msg.from}
                                                     </span>
 
                                                     <span className="text-[10px] text-slate-500 sm:text-xs">
@@ -307,7 +308,7 @@ export default function Broadcast({
                 onSubmit={sendMessage}
                 className="shrink-0 border-t border-slate-800 bg-slate-900 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
             >
-                <div className="mx-auto flex w-full max-w-4xl gap-2 sm:gap-3">
+                <div className="mx-auto flex w-full max-w-4xl items-center gap-2 sm:gap-3">
 
                     <input
                         value={message}
@@ -318,6 +319,15 @@ export default function Broadcast({
                         }
                         placeholder="Write broadcast message..."
                         className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 transition focus:border-orange-500 sm:px-4"
+                    />
+
+                    <EmojiPickerButton
+                        onEmojiSelect={(emoji) =>
+                            setMessage(
+                                (previous) =>
+                                    previous + emoji
+                            )
+                        }
                     />
 
                     <button

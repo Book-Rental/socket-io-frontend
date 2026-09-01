@@ -1,18 +1,12 @@
 import { useForm } from "react-hook-form";
-import {
-    Rb_Button,
-    Rb_Icon,
-    Rb_Input,
-    Rb_Label,
-    Rb_Text,
-} from "@rentbook/rentbook-ui-lib";
+import { Rb_Button, Rb_Icon, Rb_Input, Rb_Label, Rb_Text,} from "@rentbook/rentbook-ui-lib";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-
 import { showToast } from "../utils/showToaster";
 import { useState } from "react";
+import { CurrentUser } from "../hooks/useAuth";
 
 interface LoginProps {
-    onLogin: (username: string) => void;
+    onLogin: (user: CurrentUser) => void;
 }
 
 interface LoginFormData {
@@ -25,16 +19,9 @@ const API_BASE = import.meta.env.VITE_API_URL as string;
 export default function Login({ onLogin }: LoginProps) {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<LoginFormData>();
-
+    const { register, handleSubmit, formState: { errors }, } = useForm<LoginFormData>();
     const onSubmit = async (data: LoginFormData) => {
         setLoading(true);
-
         try {
             const res = await fetch(`${API_BASE}/api/auth/login`, {
                 method: "POST",
@@ -57,27 +44,25 @@ export default function Login({ onLogin }: LoginProps) {
                 return;
             }
 
-            const userInfo =
-                result?.data?.userInfo ?? result?.userInfo;
+            const userInfo = result?.data?.userInfo ?? result?.userInfo;
 
             if (!userInfo?.email) {
                 showToast("Unexpected response from server", "error");
                 return;
             }
 
-            const displayName =
-                userInfo.firstName || userInfo.email;
+            const currentUser: CurrentUser = {
+                id: userInfo._id,
+                firstName: userInfo.firstName,
+                lastName: userInfo.lastName,
+                email: userInfo.email,
+            };
+            showToast(`Welcome back, ${currentUser.firstName}`, "success");
+            onLogin(currentUser);
 
-            showToast(`Welcome back, ${displayName}`, "success");
-
-            onLogin(displayName);
         } catch (error) {
             console.error("Login error:", error);
-
-            showToast(
-                "Could not reach the server. Please try again.",
-                "error"
-            );
+            showToast( "Could not reach the server. Please try again.", "error" );
         } finally {
             setLoading(false);
         }
@@ -86,8 +71,6 @@ export default function Login({ onLogin }: LoginProps) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
             <div className="w-full max-w-md">
-
-                {/* Header */}
                 <div className="mb-6 text-center sm:mb-8">
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/20 sm:h-16 sm:w-16">
                         <span className="text-2xl sm:text-3xl">
@@ -104,7 +87,6 @@ export default function Login({ onLogin }: LoginProps) {
                     </p>
                 </div>
 
-                {/* Login Form */}
                 <form
                     onSubmit={handleSubmit(onSubmit)}
                     className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8"
@@ -117,7 +99,6 @@ export default function Login({ onLogin }: LoginProps) {
                         Login to continue
                     </p>
 
-                    {/* Email */}
                     <div className="mt-6">
                         <Rb_Label
                             htmlFor="email"
@@ -137,10 +118,8 @@ export default function Login({ onLogin }: LoginProps) {
                             {...register("email", {
                                 required: "Email is required",
                                 pattern: {
-                                    value:
-                                        /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
-                                    message:
-                                        "Please enter a valid email address",
+                                    value: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+                                    message: "Please enter a valid email address",
                                 },
                             })}
                         />
@@ -153,7 +132,6 @@ export default function Login({ onLogin }: LoginProps) {
                         </Rb_Text>
                     </div>
 
-                    {/* Password */}
                     <div className="mt-5">
                         <div className="relative">
                             <Rb_Label
@@ -207,7 +185,6 @@ export default function Login({ onLogin }: LoginProps) {
                         </div>
                     </div>
 
-                    {/* Login Button */}
                     <Rb_Button
                         type="submit"
                         variant="primary"

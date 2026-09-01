@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import Sidebar from "./components/Sidebar";
 import OneToOne from "./components/OneToOne";
@@ -11,20 +11,23 @@ import Login from "./Pages/Login";
 import { ChatMode } from "./utils/types";
 import { useAuth } from "./hooks/useAuth";
 import { useSocket } from "./hooks/useSocket";
+import { useAllUsers } from "./hooks/queries/useAllUsers";
 
 export default function App() {
-  const {
-    username,
-    handleLogin,
-    handleLogout,
-  } = useAuth();
+  const { currentUser, handleLogin, handleLogout } = useAuth();
+  const { onlineUsers: onlineUserIds } = useSocket(); 
+  const { data: allUsers = [] } = useAllUsers();
 
-  const { onlineUsers } = useSocket();
+  const usersById = useMemo(() => {
+      const map: Record<string, typeof allUsers[number]> = {};
+      allUsers.forEach((u) => { map[u._id] = u; });
+      return map;
+  }, [allUsers]);
 
   const [mode, setMode] = useState<ChatMode>("private");
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
-  if (!username) {
+  if (!currentUser) {
     return (
       <>
         <Login onLogin={handleLogin} />
@@ -36,36 +39,34 @@ export default function App() {
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-900 lg:flex-row">
 
       <Sidebar
-        username={username}
+        username={currentUser.id}
+        displayName={`${currentUser.firstName} ${currentUser.lastName}`}
         mode={mode}
-        onlineUsers={onlineUsers}
+        allUsers={allUsers}
+        onlineUserIds={onlineUserIds}
         selectedUser={selectedUser}
         onModeChange={setMode}
         onUserSelect={setSelectedUser}
         onLogout={handleLogout}
-      />
+    />
 
       <main className="min-h-0 min-w-0 flex-1">
         {mode === "private" && (
-          <OneToOne
-            username={username}
-            selectedUser={selectedUser}
-          />
+            <OneToOne
+                username={currentUser.id}
+                selectedUser={selectedUser}
+                usersById={usersById}
+                onlineUserIds={onlineUserIds}
+            />
         )}
-
         {mode === "broadcast" && (
-          <Broadcast username={username} />
+            <Broadcast username={currentUser.id} usersById={usersById} />
         )}
-
         {mode === "rooms" && (
-          <Rooms username={username} />
+            <Rooms username={currentUser.id} usersById={usersById} />
         )}
-
         {mode === "group" && (
-          <GroupChat
-            username={username}
-            onlineUsers={onlineUsers}
-          />
+            <GroupChat username={currentUser.id} onlineUsers={onlineUserIds} usersById={usersById} />
         )}
       </main>
     </div>
