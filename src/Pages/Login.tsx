@@ -1,9 +1,9 @@
 import { useForm } from "react-hook-form";
-import { Rb_Button, Rb_Icon, Rb_Input, Rb_Label, Rb_Text,} from "@rentbook/rentbook-ui-lib";
+import { Rb_Button, Rb_Icon, Rb_Input, Rb_Label, Rb_Text, } from "@rentbook/rentbook-ui-lib";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { showToast } from "../utils/showToaster";
 import { useState } from "react";
-import { CurrentUser } from "../hooks/useAuth";
+import { CurrentUser } from "../context/AuthContext";
 
 interface LoginProps {
     onLogin: (user: CurrentUser) => void;
@@ -63,7 +63,7 @@ export default function Login({ onLogin }: LoginProps) {
 
         } catch (error) {
             console.error("Login error:", error);
-            showToast( "Could not reach the server. Please try again.", "error" );
+            showToast("Could not reach the server. Please try again.", "error");
         } finally {
             setLoading(false);
         }
