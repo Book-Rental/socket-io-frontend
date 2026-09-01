@@ -1,27 +1,36 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 import path from "path";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), cssInjectedByJsPlugin()],
+  plugins: [
+    react(),
+    cssInjectedByJsPlugin(),
+  ],
 
   build: {
-    lib: {
-      entry: path.resolve(__dirname, "src/index.widget.tsx"),
-      name: "SocketIOWidget",
-      formats: ["iife"],
-      fileName: () => "socket_io_widget.js",
-    },
     rollupOptions: {
-      external: [],
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        widget: path.resolve(__dirname, "src/index.widget.tsx"),
+      },
+
+      output: {
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name === "widget") {
+            return "socket_io_widget.js";
+          }
+
+          return "assets/[name]-[hash].js";
+        },
+      },
     },
+
     minify: true,
   },
 
   define: {
     "process.env": {},
   },
-
-})
+});
