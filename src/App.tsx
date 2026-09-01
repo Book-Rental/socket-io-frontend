@@ -1,13 +1,10 @@
 import { useMemo, useState } from "react";
-
 import Sidebar from "./components/Sidebar";
 import OneToOne from "./components/OneToOne";
 import Broadcast from "./components/Broadcast";
 import Rooms from "./components/Rooms";
 import GroupChat from "./components/GroupChat";
-
 import Login from "./Pages/Login";
-
 import { ChatMode } from "./utils/types";
 import { useAuth } from "./hooks/useAuth";
 import { useSocket } from "./hooks/useSocket";
@@ -16,7 +13,7 @@ import { useAllUsers } from "./hooks/queries/useAllUsers";
 export default function App() {
   const { currentUser, handleLogin, handleLogout } = useAuth();
   const { onlineUsers: onlineUserIds } = useSocket(); 
-  const { data: allUsers = [] } = useAllUsers();
+  const { data: allUsers = [] } = useAllUsers(Boolean(currentUser));
 
   const usersById = useMemo(() => {
       const map: Record<string, typeof allUsers[number]> = {};

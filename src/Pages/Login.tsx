@@ -28,6 +28,7 @@ export default function Login({ onLogin }: LoginProps) {
                 headers: {
                     "Content-Type": "application/json",
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     email: data.email.trim(),
                     password: data.password,
