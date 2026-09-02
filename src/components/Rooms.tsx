@@ -31,9 +31,7 @@ export default function Rooms({ username, usersById }: RoomsProps) {
         const handleRoomCreated = (createdRoomId: string) => {
             setActiveRoom(createdRoomId);
             setJoinedRooms((prev) =>
-                prev.includes(createdRoomId)
-                    ? prev
-                    : [...prev, createdRoomId]
+                prev.includes(createdRoomId) ? prev : [...prev, createdRoomId]
             );
             setRoomUsers([]);
             showToast(`Room "${createdRoomId}" created`, "success");
@@ -42,28 +40,21 @@ export default function Rooms({ username, usersById }: RoomsProps) {
         const handleRoomJoined = (joinedRoomId: string) => {
             setActiveRoom(joinedRoomId);
             setJoinedRooms((prev) =>
-                prev.includes(joinedRoomId)
-                    ? prev
-                    : [...prev, joinedRoomId]
+                prev.includes(joinedRoomId) ? prev : [...prev, joinedRoomId]
             );
             setRoomUsers([]);
             showToast(`Joined room "${joinedRoomId}"`, "success");
         };
 
         const handleRoomLeft = (leftRoomId: string) => {
-            queryClient.removeQueries({
-                queryKey: ["roomMessages", leftRoomId],
-            });
-
+            queryClient.removeQueries({ queryKey: ["roomMessages", leftRoomId] });
             setActiveRoom(null);
             setRoomUsers([]);
             showToast(`Left room "${leftRoomId}"`, "custom");
         };
 
         const handleRoomMessage = (newMessage: Message) => {
-            if (newMessage.roomId !== activeRoom) {
-                return;
-            }
+            if (newMessage.roomId !== activeRoom) return;
 
             queryClient.setQueryData<Message[]>(
                 ["roomMessages", activeRoom],
@@ -71,11 +62,7 @@ export default function Rooms({ username, usersById }: RoomsProps) {
                     const alreadyExists = previousMessages.some(
                         (msg) => msg.id === newMessage.id
                     );
-
-                    if (alreadyExists) {
-                        return previousMessages;
-                    }
-
+                    if (alreadyExists) return previousMessages;
                     return [...previousMessages, newMessage].sort(
                         (a, b) => a.timestamp - b.timestamp
                     );
@@ -83,14 +70,8 @@ export default function Rooms({ username, usersById }: RoomsProps) {
             );
         };
 
-        const handleRoomUsers = (data: {
-            roomId: string;
-            users: string[];
-        }) => {
-            if (data.roomId !== activeRoom) {
-                return;
-            }
-
+        const handleRoomUsers = (data: { roomId: string; users: string[] }) => {
+            if (data.roomId !== activeRoom) return;
             setRoomUsers(data.users);
         };
 
@@ -102,6 +83,14 @@ export default function Rooms({ username, usersById }: RoomsProps) {
             showToast(message, "error");
         };
 
+        const handleMyRooms = (roomIds: string[]) => {
+            setJoinedRooms(roomIds);
+        };
+
+        const handleConnect = () => {
+            socket.emit("getMyRooms");
+        };
+
         socket.on("roomCreated", handleRoomCreated);
         socket.on("roomJoined", handleRoomJoined);
         socket.on("roomLeft", handleRoomLeft);
@@ -109,6 +98,13 @@ export default function Rooms({ username, usersById }: RoomsProps) {
         socket.on("roomUsers", handleRoomUsers);
         socket.on("roomNotification", handleRoomNotification);
         socket.on("errorMessage", handleError);
+        socket.on("myRooms", handleMyRooms);
+        socket.on("connect", handleConnect);
+
+        // ask immediately too, in case we're already connected when this mounts
+        if (socket.connected) {
+            socket.emit("getMyRooms");
+        }
 
         return () => {
             socket.off("roomCreated", handleRoomCreated);
@@ -118,6 +114,8 @@ export default function Rooms({ username, usersById }: RoomsProps) {
             socket.off("roomUsers", handleRoomUsers);
             socket.off("roomNotification", handleRoomNotification);
             socket.off("errorMessage", handleError);
+            socket.off("myRooms", handleMyRooms);
+            socket.off("connect", handleConnect);
         };
     }, [activeRoom, queryClient]);
 
