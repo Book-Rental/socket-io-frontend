@@ -1,56 +1,33 @@
-import { useMemo } from "react";
-import { useParams } from "react-router-dom";
-
 import OneToOne from "../components/OneToOne";
-
 import { useSocket } from "../hooks/useSocket";
 import { useAllUsers } from "../hooks/queries/useAllUsers";
-import { useAuth } from "../context/AuthContext";
+import { useAppSelector } from "../store/hooks";
 
 export default function PrivateChat() {
+    const currentUser = useAppSelector((state) => state.auth.currentUser);
+    const { selectedUserId, selectedConversationId } = useAppSelector(
+        (state) => state.navigation
+    );
+    const { onlineUsers } = useSocket();
+    const { data: allUsers = [] } = useAllUsers(Boolean(currentUser));
 
-    const { userId } = useParams<{
-        userId: string;
-    }>();
-
-    const {
-        currentUser,
-    } = useAuth();
-
-    const {
-        onlineUsers,
-    } = useSocket();
-
-    const {
-        data: allUsers = [],
-    } = useAllUsers(Boolean(currentUser));
-
-
-    const usersById = useMemo(() => {
-
-        const map: Record<
-            string,
-            (typeof allUsers)[number]
-        > = {};
-
-        allUsers.forEach((user) => {
+    const usersById = allUsers.reduce<Record<string, (typeof allUsers)[number]>>(
+        (map, user) => {
             map[user._id] = user;
-        });
-
-        return map;
-
-    }, [allUsers]);
-
+            return map;
+        },
+        {}
+    );
 
     if (!currentUser) {
         return null;
     }
 
-
     return (
         <OneToOne
             username={currentUser.id}
-            selectedUser={userId ?? null}
+            selectedUser={selectedUserId}
+            selectedConversationId={selectedConversationId}
             usersById={usersById}
             onlineUserIds={onlineUsers}
         />

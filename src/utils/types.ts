@@ -1,10 +1,13 @@
 export interface Message {
     id: string;
-    from: string;
-    to?: string;
-    roomId?: string;
-    content: string;
-    timestamp: number;
+    conversationId: string;
+    senderId: string;
+    type: "text" | "image" | "file" | "audio" | "video" | "system";
+    content?: string;
+    clientMessageId?: string;
+    replyTo?: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export type ChatMode =

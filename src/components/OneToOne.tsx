@@ -2,137 +2,124 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { socket } from "../socket";
 import { Message } from "../utils/types";
-import { usePrivateHistory } from "../hooks/queries/usePrivateHistory";
+import { useConversationHistory } from "../hooks/queries/useConversationHistory";
 import { showToast } from "../utils/showToaster";
 import EmojiPickerButton from "./EmojiPickerButton";
 
 interface OneToOneProps {
     username: string;
     selectedUser: string | null;
+    selectedConversationId: string | null;
     usersById: Record<string, { _id: string; firstName: string; lastName: string; email: string }>;
     onlineUserIds: string[];
 }
 
-export default function OneToOne({ username, selectedUser, usersById, onlineUserIds }: OneToOneProps) {
+export default function OneToOne({
+    username,
+    selectedUser,
+    selectedConversationId,
+    usersById,
+    onlineUserIds,
+}: OneToOneProps) {
 
     const selectedUserName = selectedUser
-    ? `${usersById[selectedUser]?.firstName ?? ""} ${usersById[selectedUser]?.lastName ?? ""}`.trim() || selectedUser
-    : "";
+        ? `${usersById[selectedUser]?.firstName ?? ""} ${usersById[selectedUser]?.lastName ?? ""}`.trim() || selectedUser
+        : "";
     const isSelectedUserOnline = selectedUser ? onlineUserIds.includes(selectedUser) : false;
     const [message, setMessage] = useState("");
     const [typingUser, setTypingUser] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
-    const { data: messages = [], isLoading, isError, } = usePrivateHistory(username, selectedUser);
+    const { data: messages = [], isLoading, isError } =
+        useConversationHistory(selectedConversationId);
 
     useEffect(() => {
-        const handleMessage = (newMessage: Message) => {
-            const belongsToCurrentUser =
-                newMessage.from === username ||
-                newMessage.to === username;
-
-            if (!belongsToCurrentUser) {
-                return;
-            }
-
-            if (!newMessage.to) {
-                return;
-            }
-
-            const isCurrentConversation =
-                (newMessage.from === username &&
-                    newMessage.to === selectedUser) ||
-                (newMessage.from === selectedUser &&
-                    newMessage.to === username);
-
-            if (!isCurrentConversation) {
+        const handleIncoming = (newMessage: Message) => {
+            if (newMessage.conversationId !== selectedConversationId) {
                 return;
             }
 
             queryClient.setQueryData<Message[]>(
-                ["privateMessages", username, selectedUser],
+                ["conversationMessages", selectedConversationId],
                 (previousMessages = []) => {
                     const alreadyExists = previousMessages.some(
                         (msg) => msg.id === newMessage.id
                     );
-
                     if (alreadyExists) {
                         return previousMessages;
                     }
-
                     return [...previousMessages, newMessage].sort(
-                        (a, b) => a.timestamp - b.timestamp
+                        (a, b) =>
+                            new Date(a.createdAt).getTime() -
+                            new Date(b.createdAt).getTime()
                     );
                 }
             );
         };
 
-        socket.on("receivePrivateMessage", handleMessage);
+        socket.on("messageNew", handleIncoming);
+        socket.on("messageSent", handleIncoming);
 
         return () => {
-            socket.off("receivePrivateMessage", handleMessage);
+            socket.off("messageNew", handleIncoming);
+            socket.off("messageSent", handleIncoming);
         };
-    }, [queryClient, username, selectedUser]);
+    }, [queryClient, selectedConversationId]);
 
     useEffect(() => {
-        const handleTyping = (userId: string) => {
-            if (userId === selectedUser) {
+        const handleTyping = ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+            if (conversationId === selectedConversationId) {
                 setTypingUser(userId);
             }
         };
 
-        const handleStopTyping = (userId: string) => {
-            if (userId === selectedUser) {
+        const handleStopTyping = ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+            if (conversationId === selectedConversationId && userId === typingUser) {
                 setTypingUser(null);
             }
         };
 
-        socket.on("typing", handleTyping);
-        socket.on("stopTyping", handleStopTyping);
+        socket.on("typingStarted", handleTyping);
+        socket.on("typingStopped", handleStopTyping);
 
         return () => {
-            socket.off("typing", handleTyping);
-            socket.off("stopTyping", handleStopTyping);
+            socket.off("typingStarted", handleTyping);
+            socket.off("typingStopped", handleStopTyping);
         };
-    }, [selectedUser]);
+    }, [selectedConversationId, typingUser]);
 
     const currentConversationMessages = useMemo(() => {
-        if (!selectedUser) {
+        if (!selectedConversationId) {
             return [];
         }
-
-        return messages.filter((msg) => {
-            return (
-                (msg.from === username && msg.to === selectedUser) ||
-                (msg.from === selectedUser && msg.to === username)
-            );
-        });
-    }, [messages, username, selectedUser]);
+        return messages.filter(
+            (msg) => msg.conversationId === selectedConversationId
+        );
+    }, [messages, selectedConversationId]);
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         const trimmedMessage = message.trim();
 
-        if (!selectedUser || !trimmedMessage) {
+        if (!selectedConversationId || !trimmedMessage) {
             return;
         }
 
         if (!socket.connected) {
-            showToast(
-                "You're offline. Reconnecting...",
-                "error"
-            );
+            showToast("You're offline. Reconnecting...", "error");
             return;
         }
 
-        socket.emit("sendPrivateMessage", {
-            to: selectedUser,
+        socket.emit("sendMessage", {
+            conversationId: selectedConversationId,
             content: trimmedMessage,
+            type: "text",
+            clientMessageId: `${username}-${Date.now()}`,
         });
 
-        socket.emit("stopTyping", {
-            to: selectedUser,
+        socket.emit("typingStopped", {
+            conversationId: selectedConversationId,
         });
 
         setMessage("");
@@ -141,35 +128,31 @@ export default function OneToOne({ username, selectedUser, usersById, onlineUser
     const handleTyping = (value: string) => {
         setMessage(value);
 
-        if (!selectedUser || !socket.connected) {
+        if (!selectedConversationId || !socket.connected) {
             return;
         }
 
         if (value.trim()) {
-            socket.emit("typing", {
-                to: selectedUser,
+            socket.emit("typingStarted", {
+                conversationId: selectedConversationId,
             });
         } else {
-            socket.emit("stopTyping", {
-                to: selectedUser,
+            socket.emit("typingStopped", {
+                conversationId: selectedConversationId,
             });
         }
     };
 
-    if (!selectedUser) {
+    if (!selectedConversationId) {
         return (
             <div className="flex h-full flex-1 items-center justify-center bg-slate-900 px-4">
                 <div className="text-center">
-                    <div className="mb-4 text-5xl sm:text-6xl">
-                        👋
-                    </div>
-
+                    <div className="mb-4 text-5xl sm:text-6xl">👋</div>
                     <h2 className="text-xl font-bold text-white sm:text-2xl">
                         Start a conversation
                     </h2>
-
                     <p className="mt-2 text-sm text-slate-400 sm:text-base">
-                        Select an online user from the sidebar
+                        Search for a user above to begin chatting
                     </p>
                 </div>
             </div>
@@ -183,12 +166,10 @@ export default function OneToOne({ username, selectedUser, usersById, onlineUser
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 font-semibold text-white sm:h-11 sm:w-11">
                         {selectedUserName.charAt(0).toUpperCase()}
                     </div>
-
                     <div className="min-w-0">
                         <h2 className="truncate font-semibold text-white">
                             {selectedUserName}
                         </h2>
-
                         <p className={`text-xs ${isSelectedUserOnline ? "text-emerald-400" : "text-slate-500"}`}>
                             {isSelectedUserOnline ? "● Online" : "● Offline"}
                         </p>
@@ -200,13 +181,8 @@ export default function OneToOne({ username, selectedUser, usersById, onlineUser
                 {isLoading && (
                     <div className="flex h-full items-center justify-center">
                         <div className="text-center">
-                            <div className="mb-3 text-4xl">
-                                💬
-                            </div>
-
-                            <p className="text-slate-400">
-                                Loading messages...
-                            </p>
+                            <div className="mb-3 text-4xl">💬</div>
+                            <p className="text-slate-400">Loading messages...</p>
                         </div>
                     </div>
                 )}
@@ -214,81 +190,51 @@ export default function OneToOne({ username, selectedUser, usersById, onlineUser
                 {isError && !isLoading && (
                     <div className="flex h-full items-center justify-center">
                         <div className="text-center">
-                            <div className="mb-3 text-4xl">
-                                ⚠️
-                            </div>
+                            <div className="mb-3 text-4xl">⚠️</div>
+                            <p className="font-semibold text-red-400">Failed to load messages</p>
+                            <p className="mt-1 text-sm text-slate-500">Please try again later.</p>
+                        </div>
+                    </div>
+                )}
 
-                            <p className="font-semibold text-red-400">
-                                Failed to load messages
-                            </p>
-
-                            <p className="mt-1 text-sm text-slate-500">
-                                Please try again later.
+                {!isLoading && !isError && currentConversationMessages.length === 0 && (
+                    <div className="flex h-full items-center justify-center">
+                        <div className="text-center">
+                            <div className="mb-3 text-4xl">💬</div>
+                            <p className="text-slate-500">No messages yet</p>
+                            <p className="mt-1 text-sm text-slate-600">
+                                Start a conversation with {selectedUserName}
                             </p>
                         </div>
                     </div>
                 )}
 
-                {!isLoading &&
-                    !isError &&
-                    currentConversationMessages.length === 0 && (
-                        <div className="flex h-full items-center justify-center">
-                            <div className="text-center">
-                                <div className="mb-3 text-4xl">
-                                    💬
-                                </div>
-
-                                <p className="text-slate-500">
-                                    No messages yet
-                                </p>
-
-                                <p className="mt-1 text-sm text-slate-600">
-                                    Start a conversation with{" "}
-                                    {selectedUserName}
+                {!isLoading && !isError && currentConversationMessages.map((msg) => {
+                    const mine = msg.senderId === username;
+                    return (
+                        <div key={msg.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                            <div
+                                className={`max-w-[85%] rounded-2xl px-4 py-3 sm:max-w-md ${
+                                    mine
+                                        ? "rounded-br-md bg-indigo-600 text-white"
+                                        : "rounded-bl-md bg-slate-800 text-slate-100"
+                                }`}
+                            >
+                                <p className="break-words text-sm">{msg.content}</p>
+                                <p className="mt-1 text-[10px] opacity-60">
+                                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
                                 </p>
                             </div>
                         </div>
-                    )}
-
-                {!isLoading &&
-                    !isError &&
-                    currentConversationMessages.map((msg) => {
-                        const mine = msg.from === username;
-
-                        return (
-                            <div
-                                key={msg.id}
-                                className={`flex ${mine
-                                    ? "justify-end"
-                                    : "justify-start"
-                                    }`}
-                            >
-                                <div
-                                    className={`max-w-[85%] rounded-2xl px-4 py-3 sm:max-w-md ${mine
-                                        ? "rounded-br-md bg-indigo-600 text-white"
-                                        : "rounded-bl-md bg-slate-800 text-slate-100"
-                                        }`}
-                                >
-                                    <p className="break-words text-sm">
-                                        {msg.content}
-                                    </p>
-
-                                    <p className="mt-1 text-[10px] opacity-60">
-                                        {new Date(
-                                            msg.timestamp
-                                        ).toLocaleTimeString([], {
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                        })}
-                                    </p>
-                                </div>
-                            </div>
-                        );
-                    })}
+                    );
+                })}
 
                 {typingUser && (
                     <div className="text-sm text-slate-500">
-                        {typingUser} is typing...
+                        {selectedUserName || typingUser} is typing...
                     </div>
                 )}
             </div>
@@ -300,25 +246,14 @@ export default function OneToOne({ username, selectedUser, usersById, onlineUser
                 <div className="flex gap-2 sm:gap-3">
                     <input
                         value={message}
-                        onChange={(e) =>
-                            handleTyping(e.target.value)
-                        }
+                        onChange={(e) => handleTyping(e.target.value)}
                         placeholder={`Message ${selectedUserName}...`}
                         className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-indigo-500"
                     />
-
-                    <EmojiPickerButton
-                        onEmojiSelect={(emoji) =>
-                            handleTyping(message + emoji)
-                        }
-                    />
-
+                    <EmojiPickerButton onEmojiSelect={(emoji) => handleTyping(message + emoji)} />
                     <button
                         type="submit"
-                        disabled={
-                            !socket.connected ||
-                            !message.trim()
-                        }
+                        disabled={!socket.connected || !message.trim()}
                         className="shrink-0 rounded-xl bg-indigo-600 px-4 font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
                     >
                         Send
