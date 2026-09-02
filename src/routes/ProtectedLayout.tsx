@@ -1,155 +1,145 @@
-import { useMemo } from "react";
-import {
-    Navigate,
-    Outlet,
-    useLocation,
-    useNavigate,
-} from "react-router-dom";
+// import Sidebar from "../components/Sidebar";
+// import PrivateChat from "../Pages/PrivateChat";
+// import BroadcastPage from "../Pages/BroadcastPage";
+// import RoomsPage from "../Pages/RoomsPage";
+// import GroupChatPage from "../Pages/GroupChatPage";
+// import { useSocket } from "../hooks/useSocket";
+// import { useAllUsers } from "../hooks/queries/useAllUsers";
+// import { setMode, setSelectedUser } from "../store/navigationSlice";
+// import { logoutUser } from "../store/authSlice";
+// import { useAppDispatch, useAppSelector } from "../store/hooks";
+// import { ChatMode } from "../utils/types";
 
+
+// export default function ProtectedLayout() {
+//    const dispatch = useAppDispatch();
+//     const currentUser = useAppSelector((state) => state.auth.currentUser);
+//     const { mode, selectedUserId: selectedUser } = useAppSelector( (state) => state.navigation );
+//     const { onlineUsers: onlineUserIds, } = useSocket();
+//     const { data: allUsers = [], } = useAllUsers(Boolean(currentUser));
+
+//      if (!currentUser) {
+//         return null;
+//     }
+
+//     const handleModeChange = (nextMode: ChatMode) => {
+//         dispatch(setMode(nextMode));
+//     };
+
+//     const handleUserSelect = (userId: string) => {
+//         dispatch(setSelectedUser(userId));
+//         dispatch(setMode("private"));
+//     };
+
+//     return (
+//         <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-900 lg:flex-row">
+
+//             <Sidebar
+//                 username={currentUser.id}
+//                 displayName={`${currentUser.firstName} ${currentUser.lastName}`}
+//                 mode={mode}
+//                 allUsers={allUsers}
+//                 onlineUserIds={onlineUserIds}
+//                 selectedUser={selectedUser}
+//                 onModeChange={handleModeChange}
+//                 onUserSelect={handleUserSelect}
+//                 onLogout={() => dispatch(logoutUser())}
+//             />
+
+//             <main className="min-h-0 min-w-0 flex-1">
+//                 {mode === "private" && <PrivateChat />}
+//                 {mode === "broadcast" && <BroadcastPage />}
+//                 {mode === "rooms" && <RoomsPage />}
+//                 {mode === "group" && <GroupChatPage />}
+//             </main>
+
+//         </div>
+//     );
+// }
+
+
+import { useEffect } from "react";
+import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
-
-import { useSocket } from "../hooks/useSocket";
+import PrivateChat from "../Pages/PrivateChat";
 import { useAllUsers } from "../hooks/queries/useAllUsers";
-
-import { ChatMode } from "../utils/types";
-import { useAuth } from "../context/AuthContext";
+import { useUserConversations } from "../hooks/queries/useUserConversations";
+import { useSocket } from "../hooks/useSocket";
+import { logoutUser } from "../store/authSlice";
+import { setSelectedConversation } from "../store/navigationSlice";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { socket } from "../socket";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ProtectedLayout() {
-    const { currentUser, handleLogout } = useAuth();
+    const dispatch = useAppDispatch();
+    const queryClient = useQueryClient();
 
-    const {
-        onlineUsers: onlineUserIds,
-    } = useSocket();
+    const currentUser = useAppSelector((state) => state.auth.currentUser);
+    const { selectedConversationId } = useAppSelector((state) => state.navigation);
 
-    const {
-        data: allUsers = [],
-    } = useAllUsers(Boolean(currentUser));
+    const { data: allUsers = [] } = useAllUsers(Boolean(currentUser));
+    const { onlineUsers: onlineUserIds } = useSocket();
 
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { data: conversations = [] } = useUserConversations(
+        currentUser?.id ?? null
+    );
 
-    const usersById = useMemo(() => {
-        const map: Record<
-            string,
-            (typeof allUsers)[number]
-        > = {};
-
-        allUsers.forEach((user) => {
+    const usersById = allUsers.reduce<Record<string, (typeof allUsers)[number]>>(
+        (map, user) => {
             map[user._id] = user;
-        });
+            return map;
+        },
+        {}
+    );
 
-        return map;
-    }, [allUsers]);
+    // Keep the sidebar's conversation list live: refetch whenever the
+    // backend tells us any conversation changed (new message sent/received).
+    useEffect(() => {
+        if (!currentUser) return;
 
+        const handleConversationUpdated = () => {
+            queryClient.invalidateQueries({
+                queryKey: ["userConversations", currentUser.id],
+            });
+        };
 
-    /*
-     * Determine active navigation mode.
-     */
-    const getMode = (): ChatMode => {
-        if (location.pathname.startsWith("/broadcast")) {
-            return "broadcast";
-        }
+        socket.on("conversationUpdated", handleConversationUpdated);
+        return () => {
+            socket.off("conversationUpdated", handleConversationUpdated);
+        };
+    }, [currentUser, queryClient]);
 
-        if (location.pathname.startsWith("/rooms")) {
-            return "rooms";
-        }
-
-        if (location.pathname.startsWith("/group")) {
-            return "group";
-        }
-
-        return "private";
-    };
-
-    const mode = getMode();
-
-
-    /*
-     * Determine selected private user.
-     *
-     * /chat/12345
-     */
-    const selectedUser =
-        location.pathname.startsWith("/chat/")
-            ? location.pathname.split("/")[2] || null
-            : null;
-
-
-    /*
-     * Sidebar navigation.
-     */
-    const handleModeChange = (
-        nextMode: ChatMode
-    ) => {
-        switch (nextMode) {
-            case "private":
-                navigate("/chat");
-                break;
-
-            case "broadcast":
-                navigate("/broadcast");
-                break;
-
-            case "rooms":
-                navigate("/rooms");
-                break;
-
-            case "group":
-                navigate("/group");
-                break;
-        }
-    };
-
-
-    /*
-     * User selected from sidebar.
-     */
-    const handleUserSelect = (
-        userId: string
-    ) => {
-        navigate(`/chat/${userId}`);
-    };
-
-
-    /*
-     * Conditional return AFTER all hooks.
-     */
     if (!currentUser) {
-        return (
-            <Navigate
-                to="/login"
-                replace
-            />
-        );
+        return null;
     }
 
-
     return (
-        <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-900 lg:flex-row">
+        <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-900">
 
-            <Sidebar
-                username={currentUser.id}
+            <Header
                 displayName={`${currentUser.firstName} ${currentUser.lastName}`}
-                mode={mode}
                 allUsers={allUsers}
-                onlineUserIds={onlineUserIds}
-                selectedUser={selectedUser}
-                onModeChange={handleModeChange}
-                onUserSelect={handleUserSelect}
-                onLogout={handleLogout}
+                currentUserId={currentUser.id}
+                onLogout={() => dispatch(logoutUser())}
             />
 
-            <main className="min-h-0 min-w-0 flex-1">
-                <Outlet
-                    context={{
-                        currentUser,
-                        onlineUserIds,
-                        allUsers,
-                        usersById,
-                        selectedUser,
-                    }}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+                <Sidebar
+                    currentUserId={currentUser.id}
+                    conversations={conversations}
+                    usersById={usersById}
+                    onlineUserIds={onlineUserIds}
+                    selectedConversationId={selectedConversationId}
+                    onConversationSelect={(userId, conversationId) =>
+                        dispatch(setSelectedConversation({ userId, conversationId }))
+                    }
                 />
-            </main>
+
+                <main className="min-h-0 min-w-0 flex-1">
+                    <PrivateChat />
+                </main>
+            </div>
 
         </div>
     );

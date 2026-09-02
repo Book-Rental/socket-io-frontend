@@ -3,7 +3,7 @@ import { Rb_Button, Rb_Icon, Rb_Input, Rb_Label, Rb_Text, } from "@rentbook/rent
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { showToast } from "../utils/showToaster";
 import { useState } from "react";
-import { CurrentUser } from "../context/AuthContext";
+import { CurrentUser } from "../store/authSlice";
 
 interface LoginProps {
     onLogin: (user: CurrentUser) => void;
