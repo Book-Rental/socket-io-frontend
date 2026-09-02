@@ -49,7 +49,6 @@ export async function fetchAllUsers(): Promise<BookRentalUser[]> {
         hasMore = meta?.hasMore ?? false;
         page += 1;
 
-        // safety net so a backend bug can't loop forever
         if (page > 50) break;
     }
 
