@@ -38,7 +38,7 @@ export default function EmojiPickerButton({
                         (previous) => !previous
                     )
                 }
-                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-xl text-slate-400 transition hover:bg-slate-700 hover:text-yellow-400"
+                className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-xl text-slate-500 transition hover:bg-slate-100 hover:text-yellow-500"
                 aria-label="Open emoji picker"
             >
                 😊

@@ -213,7 +213,7 @@ export default function Sidebar({
 }: SidebarProps) {
 
     return (
-        <aside className="flex h-auto max-h-[45vh] w-full shrink-0 flex-col border-b border-slate-800 bg-slate-950 sm:max-h-[40vh] lg:h-screen lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
+        <aside className="flex h-auto max-h-[45vh] w-full shrink-0 flex-col border-b border-slate-200 bg-white shadow-md sm:max-h-[40vh] lg:h-screen lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r lg:border-slate-200">
 
             {conversations.length === 0 ? (
                 <div className="flex min-h-0 flex-1 items-center justify-center px-4">
@@ -249,22 +249,22 @@ export default function Sidebar({
                                     onConversationSelect(otherUserId, conversation._id)
                                 }
                                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-                                    isSelected ? "bg-slate-800" : "hover:bg-slate-900"
+                                    isSelected ? "bg-blue-50" : "hover:bg-slate-50"
                                 }`}
                             >
                                 <div className="relative shrink-0">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
                                         {otherUser.firstName.charAt(0).toUpperCase()}
                                     </div>
                                     <span
-                                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 ${
+                                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${
                                             isOnline ? "bg-emerald-500" : "bg-slate-600"
                                         }`}
                                     />
                                 </div>
 
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-slate-200">
+                                    <p className="truncate text-sm font-medium text-blue-600">
                                         {fullName}
                                     </p>
                                     <p className={`text-xs ${isOnline ? "text-emerald-400" : "text-slate-500"}`}>
