@@ -1,5 +1,9 @@
 import { Message } from "./types";
 
+interface RawMessage extends Omit<Message, "id"> {
+    _id: string;
+}
+
 const CONVERSATION_API_BASE = `${import.meta.env.VITE_CHAT_API_URL}/api/conversations`;
 
 export interface ConversationParticipant {
@@ -66,6 +70,6 @@ export async function fetchConversationDetails(
     const data = await res.json();
     return {
         ...data,
-        messages: (data.messages ?? []).map((m: any) => ({ ...m, id: m._id })),
+        messages: (data.messages ?? []).map((m: RawMessage) => ({ ...m, id: m._id })),
     };
 }
