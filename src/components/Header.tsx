@@ -3,7 +3,7 @@ import { BookRentalUser } from "../utils/userApi";
 import { createPrivateConversation } from "../utils/conversationApi";
 import { setSelectedConversation } from "../store/navigationSlice";
 import { useAppDispatch } from "../store/hooks";
-import bookbuddylogo from "../assets/Bookbuddylogo.png";
+import bookbuddylogo from "../assets/bookbuddylogo.png";
 import { FiSearch, FiX } from "react-icons/fi";
 
 interface HeaderProps {
