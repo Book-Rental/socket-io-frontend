@@ -98,3 +98,39 @@ export async function fetchUserConversations(
     const data = await res.json();
     return data.conversations ?? [];
 }
+
+export async function markMessagesRead(
+    conversationId: string,
+    userId: string,
+    messageId: string
+): Promise<void> {
+    const res = await fetch(`${CHAT_API_BASE}/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ conversationId, userId, messageId }),
+    });
+    if (!res.ok) throw new Error("Failed to mark messages as read");
+}
+
+export async function fetchChattedUsers(userId: string): Promise<string[]> {
+    const res = await fetch(
+        `${CHAT_API_BASE}/chatted-users/${encodeURIComponent(userId)}`,
+        { credentials: "include" }
+    );
+    if (!res.ok) throw new Error("Failed to fetch chatted users");
+    const data = await res.json();
+    return data.users ?? [];
+}
+
+export async function fetchUnreadCounts(
+    userId: string
+): Promise<Array<{ conversationId: string; unreadCount: number }>> {
+    const res = await fetch(
+        `${CHAT_API_BASE}/unread/${encodeURIComponent(userId)}`,
+        { credentials: "include" }
+    );
+    if (!res.ok) throw new Error("Failed to fetch unread counts");
+    const data = await res.json();
+    return data.conversations ?? [];
+}
