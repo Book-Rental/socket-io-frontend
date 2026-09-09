@@ -134,3 +134,27 @@ export async function fetchUnreadCounts(
     const data = await res.json();
     return data.conversations ?? [];
 }
+
+export async function uploadChatFile(file: File): Promise<{
+    mediaUrl: string;
+    mimeType: string;
+    fileName: string;
+    fileSize: number;
+    resourceType: string;
+}> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`${import.meta.env.VITE_CHAT_API_URL}/api/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+    });
+
+    if (!res.ok) {
+        throw new Error("Failed to upload file");
+    }
+
+    const data = await res.json();
+    return data.file;
+}
