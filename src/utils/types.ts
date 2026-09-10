@@ -22,12 +22,14 @@ export interface Message {
     conversationId: string;
     senderId: string;
     type: "text" | "image" | "file" | "audio" | "video" | "location" | "contact" | "system";
-    content?: MessageContent;        
+    content?: MessageContent;
     clientMessageId?: string;
     replyTo?: string;
-    status: MessageStatus;           
-    editedAt?: string;               
-    deletedAt?: string;              
+    status: MessageStatus;
+    editedAt?: string;
+    forwarded?: boolean;
+    forwardCount?: number;
+    deletedAt?: string;
     createdAt: string;
     updatedAt: string;
 }
