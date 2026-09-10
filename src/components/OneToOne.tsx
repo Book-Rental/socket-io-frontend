@@ -17,8 +17,9 @@ import {
     FiSquare,
     FiTrash2,
     FiSend,
+    FiType,
 } from "react-icons/fi";
-import { HiOutlineHandRaised } from "react-icons/hi2";
+import { MdWavingHand } from "react-icons/md";
 import RecordRTC from "recordrtc";
 
 interface OneToOneProps {
@@ -29,10 +30,9 @@ interface OneToOneProps {
     onlineUserIds: string[];
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // matches backend multer limit
+const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
-const micSupported =
-    typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+const micSupported = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
 
 function resolveMessageType(mimeType: string): "image" | "video" | "audio" | "file" {
     if (mimeType.startsWith("image/")) return "image";
@@ -112,6 +112,9 @@ export default function OneToOne({
     const recorderRef = useRef<RecordRTC | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const messageInputRef = useRef<HTMLInputElement | null>(null);
+    const [showFormatMenu, setShowFormatMenu] = useState(false);
 
     useEffect(() => {
         const handleIncoming = (newMessage: Message) => {
@@ -385,6 +388,26 @@ export default function OneToOne({
         }
     };
 
+    const applyFormatting = (marker: string) => {
+        const input = messageInputRef.current;
+        if (!input) return;
+
+        const start = input.selectionStart ?? message.length;
+        const end = input.selectionEnd ?? message.length;
+        const selectedText = message.slice(start, end);
+
+        const newText =
+            message.slice(0, start) + marker + selectedText + marker + message.slice(end);
+
+        handleTyping(newText);
+        setShowFormatMenu(false);
+
+        requestAnimationFrame(() => {
+            input.focus();
+            input.setSelectionRange(start + marker.length, end + marker.length);
+        });
+    };
+
     const startEdit = (msg: Message) => {
         setEditingMessageId(msg.id);
         setEditText(msg.content?.text ?? "");
@@ -543,13 +566,17 @@ export default function OneToOne({
 
     if (!selectedConversationId) {
         return (
-            <div className="flex h-full flex-1 items-center justify-center bg-white px-4">
+            <div className="flex h-full flex-1 items-center justify-center bg-slate-50 px-4">
                 <div className="text-center">
-                    <HiOutlineHandRaised className="mx-auto mb-4 text-5xl text-slate-400 sm:text-6xl" />
-                    <h2 className="text-xl font-bold text-white sm:text-2xl">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+                        <MdWavingHand className="text-3xl text-blue-600 sm:text-4xl" />
+                    </div>
+
+                    <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">
                         Start a conversation
                     </h2>
-                    <p className="mt-2 text-sm text-slate-400 sm:text-base">
+
+                    <p className="mt-2 text-sm text-slate-500 sm:text-base">
                         Search for a user above to begin chatting
                     </p>
                 </div>
@@ -561,7 +588,7 @@ export default function OneToOne({
         <div className="flex h-full min-h-0 flex-1 flex-col bg-white">
             <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 font-semibold text-white sm:h-11 sm:w-11">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 font-semibold text-white sm:h-11 sm:w-11">
                         {selectedUserName.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -613,7 +640,7 @@ export default function OneToOne({
                         <div key={msg.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                             <div
                                 className={`relative max-w-[85%] rounded-2xl px-4 py-3 pr-7 sm:max-w-md ${mine
-                                    ? "rounded-br-md bg-indigo-600 text-white"
+                                    ? "rounded-br-md bg-blue-600 text-white"
                                     : "rounded-bl-md bg-slate-100 text-slate-800"
                                     }`}
                             >
@@ -746,7 +773,7 @@ export default function OneToOne({
                             type="button"
                             onClick={sendVoiceMessage}
                             disabled={isUploading}
-                            className="shrink-0 rounded-full bg-indigo-600 p-2 text-white hover:bg-indigo-500 disabled:opacity-50"
+                            className="shrink-0 rounded-full bg-blue-600p-2 text-white hover:bg-blue-500 disabled:opacity-50"
                             title="Send voice message"
                         >
                             <FiSend />
@@ -777,49 +804,75 @@ export default function OneToOne({
                             </div>
                         )}
 
-                        <div className="flex gap-2 sm:gap-3">
+                        <div className="flex items-end gap-2 sm:gap-3">
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 onChange={handleFileSelect}
                                 className="hidden"
                             />
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploading}
-                                className="shrink-0 rounded-xl border border-slate-300 px-3 text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                                title="Attach a file"
-                            >
-                                <FiPaperclip />
-                            </button>
-                            <input
-                                value={message}
-                                onChange={(e) => handleTyping(e.target.value)}
-                                placeholder={selectedFile ? "Add a caption..." : `Message ${selectedUserName}...`}
-                                className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-800 outline-none placeholder:text-slate-500 focus:border-indigo-500"
-                            />
-                            <EmojiPickerButton onEmojiSelect={(emoji) => handleTyping(message + emoji)} />
 
-                            {message.trim() || selectedFile ? (
-                                <button
-                                    type="submit"
-                                    disabled={!socket.connected || isUploading}
-                                    className="shrink-0 rounded-xl bg-indigo-600 px-4 font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
-                                >
-                                    {isUploading ? "Uploading..." : "Send"}
-                                </button>
-                            ) : (
+                            <div className="relative flex min-w-0 flex-1 items-center gap-1 rounded-xl border border-slate-300 bg-slate-50 pl-4 pr-2 focus-within:border-blue-500">
+                                <input
+                                    ref={messageInputRef}
+                                    value={message}
+                                    onChange={(e) => handleTyping(e.target.value)}
+                                    placeholder={selectedFile ? "Add a caption..." : `Message ${selectedUserName}...`}
+                                    className="min-w-0 flex-1 bg-transparent py-3 text-slate-800 outline-none placeholder:text-slate-500"
+                                />
+
                                 <button
                                     type="button"
-                                    onClick={startRecording}
-                                    disabled={!socket.connected || isUploading || !micSupported}
-                                    className="shrink-0 rounded-xl bg-indigo-600 px-4 text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                    title={micSupported ? "Record a voice message" : "Voice recording not supported"}
+                                    onClick={() => setShowFormatMenu((prev) => !prev)}
+                                    className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-200"
+                                    title="Formatting"
                                 >
-                                    <FiMic />
+                                    <FiType />
                                 </button>
-                            )}
+
+                                {showFormatMenu && (
+                                    <div className="absolute bottom-full right-0 z-10 mb-2 flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                                        <button type="button" onClick={() => applyFormatting("*")} className="rounded px-2 py-1 text-sm font-bold text-slate-700 hover:bg-slate-100">B</button>
+                                        <button type="button" onClick={() => applyFormatting("_")} className="rounded px-2 py-1 text-sm italic text-slate-700 hover:bg-slate-100">I</button>
+                                        <button type="button" onClick={() => applyFormatting("~")} className="rounded px-2 py-1 text-sm line-through text-slate-700 hover:bg-slate-100">S</button>
+                                    </div>
+                                )}
+
+                                <EmojiPickerButton onEmojiSelect={(emoji) => handleTyping(message + emoji)} />
+
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-200 disabled:opacity-50"
+                                    title="Attach a file"
+                                >
+                                    <FiPaperclip />
+                                </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={startRecording}
+                                        disabled={!socket.connected || isUploading || !micSupported}
+                                        className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-200 disabled:opacity-50"
+                                        title={micSupported ? "Record a voice message" : "Voice recording not supported"}
+                                    >
+                                        <FiMic />
+                                    </button>
+
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={
+                                    !socket.connected ||
+                                    isUploading ||
+                                    (!message.trim() && !selectedFile)
+                                }
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isUploading ? <span>Uploading...</span> : <FiSend className="text-lg" />}
+                            </button>
                         </div>
                     </>
                 )}

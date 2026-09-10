@@ -14,6 +14,12 @@ interface RawMessage extends Omit<Message, "id"> {
     _id: string;
 }
 
+export interface ConversationSearchResult {
+    conversationId: string;
+    otherUserId: string;
+    matchedText: string;
+}
+
 const CHAT_API_BASE = `${import.meta.env.VITE_CHAT_API_URL}/api/messages`;
 
 export async function fetchConversationHistory(
@@ -121,6 +127,25 @@ export async function fetchChattedUsers(userId: string): Promise<string[]> {
     if (!res.ok) throw new Error("Failed to fetch chatted users");
     const data = await res.json();
     return data.users ?? [];
+}
+
+export interface ConversationSearchResult {
+    conversationId: string;
+    otherUserId: string;
+}
+
+export async function searchConversations(
+    userId: string,
+    q: string
+): Promise<ConversationSearchResult[]> {
+    const params = new URLSearchParams({ userId, q });
+    const res = await fetch(
+        `${CHAT_API_BASE}/search-conversations?${params.toString()}`,
+        { credentials: "include" }
+    );
+    if (!res.ok) throw new Error("Failed to search conversations");
+    const data = await res.json();
+    return data.results ?? [];
 }
 
 export async function fetchUnreadCounts(
