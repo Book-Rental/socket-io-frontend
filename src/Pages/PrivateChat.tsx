@@ -1,7 +1,7 @@
-import OneToOne from "../components/OneToOne";
 import { useSocket } from "../hooks/useSocket";
 import { useAllUsers } from "../hooks/queries/useAllUsers";
 import { useAppSelector } from "../store/hooks";
+import OneToOne from "../components/OneToOne/index";
 
 export default function PrivateChat() {
     const currentUser = useAppSelector((state) => state.auth.currentUser);
