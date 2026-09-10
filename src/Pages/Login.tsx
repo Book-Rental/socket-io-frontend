@@ -74,7 +74,7 @@ export default function Login({ onLogin }: LoginProps) {
         <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
             <div className="w-full max-w-md">
                 <div className="mb-6 text-center sm:mb-8">
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/20 sm:h-16 sm:w-16">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/20 sm:h-16 sm:w-16">
                         <img
                             src={bookbuddylogo}
                             alt="BookBuddy"
@@ -156,29 +156,26 @@ export default function Login({ onLogin }: LoginProps) {
                                 placeholder="Enter password"
                                 borderClass="border !border-slate-700"
                                 error={!!errors.password}
-                                className="w-full rounded-xl bg-slate-50 px-4 py-3 pr-10 text-white"
+                                className="w-full rounded-xl bg-slate-50 px-4 py-3 pr-10 text-black"
                                 {...register("password", {
                                     required: "Password is required",
                                 })}
                             />
 
-                            <Rb_Button
-                                variant="primary"
-                                onClick={() =>
-                                    setShowPassword(!showPassword)
-                                }
-                                className="absolute right-3 top-[55%] -translate-y-1/2 text-gray-500"
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-[55%] -translate-y-1/2 
+                                        flex items-center justify-center 
+                                        bg-transparent text-gray-500 
+                                        hover:bg-transparent focus:outline-none"
                             >
                                 <Rb_Icon
-                                    icon={
-                                        showPassword
-                                            ? FaEyeSlash
-                                            : FaEye
-                                    }
+                                    icon={showPassword ? FaEyeSlash : FaEye}
                                     size={15}
                                     color="#3b82f6"
                                 />
-                            </Rb_Button>
+                            </button>
 
                             <Rb_Text
                                 variant="p"
@@ -194,7 +191,7 @@ export default function Login({ onLogin }: LoginProps) {
                         variant="primary"
                         size="md"
                         isLoading={loading}
-                        className="mt-6 w-full rounded-xl"
+                        className="mt-6 w-full rounded-xl !bg-blue-600 !text-white hover:!bg-blue-700"
                     >
                         {loading ? "Logging in..." : "Login"}
                     </Rb_Button>
