@@ -30,8 +30,13 @@ const navigationSlice = createSlice({
             state.selectedUserId = action.payload.userId;
             state.selectedConversationId = action.payload.conversationId;
         },
+        resetNavigation: (state) => {
+            state.mode = "private";
+            state.selectedUserId = null;
+            state.selectedConversationId = null;
+        },
     },
 });
 
-export const { setMode, setSelectedUser, setSelectedConversation } = navigationSlice.actions;
+export const { setMode, setSelectedUser, setSelectedConversation, resetNavigation, } = navigationSlice.actions;
 export default navigationSlice.reducer;

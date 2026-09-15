@@ -1,6 +1,7 @@
 import { FiAlertTriangle, FiMessageCircle } from "react-icons/fi";
 import { Message } from "../../utils/types";
 import MessageBubble from "./MessageBubble";
+import { useEffect, useRef } from "react";
 
 interface MessageListProps {
     messages: Message[];
@@ -20,6 +21,7 @@ interface MessageListProps {
     onSubmitEdit: () => void;
     onCancelEdit: () => void;
     onToggleMenu: (messageId: string | null) => void;
+    onReply: (msg: Message) => void;
     onForward: (msg: Message) => void;
     onDeleteForMe: (messageId: string) => void;
     onDeleteForEveryone: (messageId: string) => void;
@@ -43,12 +45,25 @@ export default function MessageList({
     onSubmitEdit,
     onCancelEdit,
     onToggleMenu,
+    onReply,
     onForward,
     onDeleteForMe,
     onDeleteForEveryone,
 }: MessageListProps) {
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+
+        if (!container) return;
+
+        container.scrollTop = container.scrollHeight;
+    }, [messages]);
+
     return (
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
+        <div 
+            ref={messagesContainerRef}
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
+
             {isLoading && (
                 <div className="flex h-full items-center justify-center">
                     <div className="text-center">
@@ -102,6 +117,7 @@ export default function MessageList({
                         onSubmitEdit={onSubmitEdit}
                         onCancelEdit={onCancelEdit}
                         onToggleMenu={onToggleMenu}
+                        onReply={onReply}   
                         onForward={onForward}
                         onDeleteForMe={onDeleteForMe}
                         onDeleteForEveryone={onDeleteForEveryone}
