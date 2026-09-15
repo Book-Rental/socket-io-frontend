@@ -1,13 +1,9 @@
-import {
-    FiCornerUpRight,
-    FiFile,
-    FiMic,
-    FiMoreVertical,
-    FiTrash2,
-    FiType,
-} from "react-icons/fi";
+import { FiCornerUpRight, FiFile, FiMic } from "react-icons/fi";
 import { Message } from "../../utils/types";
 import { formatDuration, formatFileSize, linkifyText } from "./MessageUtils";
+import FormattedMessage from "../FormattedMessage";
+import MessageActions from "./MessageActions";
+import ReplyMessagePreview from "./ReplyMessagePreview";
 
 interface MessageBubbleProps {
     msg: Message;
@@ -23,6 +19,7 @@ interface MessageBubbleProps {
     onSubmitEdit: () => void;
     onCancelEdit: () => void;
     onToggleMenu: (messageId: string | null) => void;
+    onReply: (msg: Message) => void;
     onForward: (msg: Message) => void;
     onDeleteForMe: (messageId: string) => void;
     onDeleteForEveryone: (messageId: string) => void;
@@ -121,9 +118,7 @@ function renderMessageContent(msg: Message) {
 
         default:
             return (
-                <p className="break-words text-sm">
-                    {linkifyText(msg.content?.text ?? "")}
-                </p>
+                <FormattedMessage text={msg.content?.text ?? ""} />
             );
     }
 }
@@ -142,16 +137,15 @@ export default function MessageBubble({
     onSubmitEdit,
     onCancelEdit,
     onToggleMenu,
+    onReply,
     onForward,
     onDeleteForMe,
     onDeleteForEveryone,
 }: MessageBubbleProps) {
     const forwardCount =
-        typeof msg.forwardCount === "number"
-            ? Math.max(1, msg.forwardCount)
-            : msg.forwarded
-                ? 1
-                : 0;
+    msg.forwarded
+        ? Math.max(1, msg.forwardCount ?? 1)
+        : 0;
 
     return (
         <div
@@ -254,6 +248,24 @@ export default function MessageBubble({
                                 </div>
                             )}
 
+                            {msg.replyTo && (
+                                <ReplyMessagePreview
+                                    senderName={msg.replyTo.senderId}
+                                    text={
+                                        msg.replyTo.text ||
+                                        (msg.replyTo.type === "image"
+                                            ? "📷 Photo"
+                                            : msg.replyTo.type === "video"
+                                                ? "🎥 Video"
+                                                : msg.replyTo.type === "audio"
+                                                    ? "🎤 Voice message"
+                                                    : msg.replyTo.type === "file"
+                                                        ? `📄 ${msg.replyTo.fileName ?? "File"}`
+                                                        : "Message")
+                                    }
+                                />
+                            )}
+
                             {renderMessageContent(msg)}
                         </>
                     )}
@@ -282,70 +294,17 @@ export default function MessageBubble({
                     </div>
 
                     {!msg.deletedAt && !selectionMode && !isEditing && (
-                        <div className="absolute right-1 top-1">
-                            <button
-                                type="button"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onToggleMenu(
-                                        isMenuOpen ? null : msg.id
-                                    );
-                                }}
-                                className="rounded p-0.5 text-white/70 hover:bg-white/10 hover:text-white"
-                            >
-                                <FiMoreVertical />
-                            </button>
-
-                            {isMenuOpen && (
-                                <div className="absolute right-0 top-6 z-10 w-44 overflow-hidden rounded-lg bg-slate-700 py-1 text-xs shadow-lg">
-                                    {mine && msg.type === "text" && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onStartEdit(msg)}
-                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-white hover:bg-slate-600"
-                                        >
-                                            <FiType />
-                                            Edit
-                                        </button>
-                                    )}
-
-                                    <button
-                                        type="button"
-                                        onClick={() => onForward(msg)}
-                                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-white hover:bg-slate-600"
-                                    >
-                                        <FiCornerUpRight />
-                                        Forward
-                                    </button>
-
-                                    {mine && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                onDeleteForMe(msg.id)
-                                            }
-                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-white hover:bg-slate-600"
-                                        >
-                                            <FiTrash2 />
-                                            Delete for me
-                                        </button>
-                                    )}
-
-                                    {mine && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                onDeleteForEveryone(msg.id)
-                                            }
-                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-300 hover:bg-slate-600"
-                                        >
-                                            <FiTrash2 />
-                                            Delete for everyone
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                        <MessageActions
+                            msg={msg}
+                            mine={mine}
+                            isMenuOpen={isMenuOpen}
+                            onToggleMenu={onToggleMenu}
+                            onReply={onReply}
+                            onStartEdit={onStartEdit}
+                            onForward={onForward}
+                            onDeleteForMe={onDeleteForMe}
+                            onDeleteForEveryone={onDeleteForEveryone}
+                        />
                     )}
                 </div>
             </div>

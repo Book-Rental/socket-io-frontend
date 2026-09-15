@@ -1,5 +1,16 @@
 import AppRoot from "./routes/AppRoot";
+import { Toaster } from "react-hot-toast";
 
 export default function App() {
-  return <AppRoot />;
+  return (
+        <>
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    duration: 3000,
+                }}
+            />
+            <AppRoot />
+        </>
+    );
 }

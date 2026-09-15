@@ -35,6 +35,7 @@ export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
         const res = await fetch(`${API_BASE}/api/auth/logout`, {
             method: "GET",
             credentials: "include",
+            cache: "no-store",
         });
         if (!res.ok) {
             console.warn("Backend logout failed");

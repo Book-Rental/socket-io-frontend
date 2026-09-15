@@ -39,12 +39,7 @@ export async function fetchConversationHistory(
 
     const data = await res.json();
 
-    return (data.messages ?? []).map(
-        (m: RawMessage) => ({
-            ...m,
-            id: m._id,
-        })
-    );
+    return (data.messages ?? []) as Message[];
 }
 
 export async function fetchRoomHistory(

@@ -24,7 +24,7 @@ export interface Message {
     type: "text" | "image" | "file" | "audio" | "video" | "location" | "contact" | "system";
     content?: MessageContent;
     clientMessageId?: string;
-    replyTo?: string;
+    // replyTo?: string;
     status: MessageStatus;
     editedAt?: string;
     forwarded?: boolean;
@@ -32,6 +32,7 @@ export interface Message {
     deletedAt?: string;
     createdAt: string;
     updatedAt: string;
+    replyTo?: ReplyToMessage;
 }
 
 export type ChatMode =
@@ -43,4 +44,12 @@ export type ChatMode =
 export interface Room {
     id: string;
     name: string;
+}
+
+export interface ReplyToMessage {
+    messageId: string;
+    senderId: string;
+    text?: string;
+    type?: string;
+    fileName?: string;
 }

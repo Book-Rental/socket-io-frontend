@@ -1,4 +1,4 @@
-import { FormEvent } from "react";
+import { FormEvent, useEffect} from "react";
 import {
     FiFile,
     FiMic,
@@ -6,45 +6,40 @@ import {
     FiSend,
     FiSquare,
     FiTrash2,
-    FiType,
     FiX,
 } from "react-icons/fi";
 import EmojiPickerButton from "../EmojiPickerButton";
 import { formatDuration } from "./MessageUtils";
+import TextFormatting from "../TextFormatting";
+import { Message } from "../../utils/types";
+import ReplyPreview from "./ReplyPreview";
 
 interface ChatInputProps {
     selectedUserName: string;
     message: string;
     onMessageChange: (value: string) => void;
-    messageInputRef: React.RefObject<HTMLInputElement>;
-
+    messageInputRef: React.RefObject<HTMLDivElement>;
     selectedFile: File | null;
     filePreviewUrl: string | null;
     fileInputRef: React.RefObject<HTMLInputElement>;
     onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearAttachment: () => void;
-
-    showFormatMenu: boolean;
-    onToggleFormatMenu: () => void;
-    onApplyFormatting: (marker: string) => void;
     onEmojiSelect: (emoji: string) => void;
-
     isRecording: boolean;
     recordingDuration: number;
     onStartRecording: () => void;
     onStopRecording: () => void;
     onCancelRecording: () => void;
-
     recordedBlob: Blob | null;
     recordedUrl: string | null;
     onDiscardRecording: () => void;
     onSendVoiceMessage: () => void;
-
     isUploading: boolean;
     isSocketConnected: boolean;
     micSupported: boolean;
-
     onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+    replyingTo: Message | null;
+    onCancelReply: () => void;
 }
 
 export default function ChatInput({
@@ -57,9 +52,6 @@ export default function ChatInput({
     fileInputRef,
     onFileSelect,
     onClearAttachment,
-    showFormatMenu,
-    onToggleFormatMenu,
-    onApplyFormatting,
     onEmojiSelect,
     isRecording,
     recordingDuration,
@@ -74,12 +66,28 @@ export default function ChatInput({
     isSocketConnected,
     micSupported,
     onSubmit,
+    replyingTo,
+    onCancelReply,
 }: ChatInputProps) {
+    useEffect(() => {
+        if (message === "" && messageInputRef.current) {
+            messageInputRef.current.innerHTML = "";
+        }
+    }, [message, messageInputRef]);
     return (
         <form
             onSubmit={onSubmit}
             className="shrink-0 border-t border-slate-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
         >
+            {replyingTo && (
+                <div className="mb-2">
+                    <ReplyPreview
+                        message={replyingTo}
+                        senderName={replyingTo.senderId}
+                        onCancel={onCancelReply}
+                    />
+                </div>
+            )}
             {isRecording && (
                 <div className="flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3">
                     <span className="relative flex h-3 w-3 shrink-0">
@@ -176,62 +184,30 @@ export default function ChatInput({
                         />
 
                         <div className="relative flex min-w-0 flex-1 items-center gap-1 rounded-xl border border-slate-300 bg-slate-50 pl-4 pr-2 focus-within:border-blue-500">
-                            <input
+                            <div
                                 ref={messageInputRef}
-                                value={message}
-                                onChange={(e) =>
-                                    onMessageChange(e.target.value)
-                                }
-                                placeholder={
+                                contentEditable
+                                suppressContentEditableWarning
+                                role="textbox"
+                                aria-multiline="true"
+                                data-placeholder={
                                     selectedFile
                                         ? "Add a caption..."
                                         : `Message ${selectedUserName}...`
                                 }
-                                className="min-w-0 flex-1 bg-transparent py-3 text-slate-800 outline-none placeholder:text-slate-500"
+                                onInput={(e) => {
+                                    onMessageChange(e.currentTarget.innerText);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        e.currentTarget.closest("form")?.requestSubmit();
+                                    }
+                                }}
+                                className="min-h-[24px] min-w-0 flex-1 overflow-y-auto bg-transparent py-3 text-slate-800 outline-none empty:before:pointer-events-none empty:before:text-slate-500 empty:before:content-[attr(data-placeholder)]"
                             />
 
-                            <button
-                                type="button"
-                                onClick={onToggleFormatMenu}
-                                className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-200"
-                            >
-                                <FiType />
-                            </button>
-
-                            {showFormatMenu && (
-                                <div className="absolute bottom-full right-0 z-10 mb-2 flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onApplyFormatting("*")
-                                        }
-                                        className="rounded px-2 py-1 text-sm font-bold text-slate-700 hover:bg-slate-100"
-                                    >
-                                        B
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onApplyFormatting("_")
-                                        }
-                                        className="rounded px-2 py-1 text-sm italic text-slate-700 hover:bg-slate-100"
-                                    >
-                                        I
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onApplyFormatting("~")
-                                        }
-                                        className="rounded px-2 py-1 text-sm text-slate-700 line-through hover:bg-slate-100"
-                                    >
-                                        S
-                                    </button>
-                                </div>
-                            )}
-
+                            <TextFormatting editorRef={messageInputRef} />
                             <EmojiPickerButton onEmojiSelect={onEmojiSelect} />
 
                             <button

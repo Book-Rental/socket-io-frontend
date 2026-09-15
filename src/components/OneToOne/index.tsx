@@ -67,21 +67,16 @@ export default function OneToOne({
 
     const [message, setMessage] = useState("");
     const [typingUser, setTypingUser] = useState<string | null>(null);
-
-    const [editingMessageId, setEditingMessageId] = useState<string | null>(
-        null
-    );
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null );
     const [editText, setEditText] = useState("");
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const messageInputRef = useRef<HTMLInputElement | null>(null);
+    const messageInputRef = useRef<HTMLDivElement | null>(null);
 
-    const [showFormatMenu, setShowFormatMenu] = useState(false);
 
     const [isRecording, setIsRecording] = useState(false);
     const [recordingDuration, setRecordingDuration] = useState(0);
@@ -117,6 +112,10 @@ export default function OneToOne({
     const [isLoadingForwardList, setIsLoadingForwardList] = useState(false);
     const [forwardSearchTerm, setForwardSearchTerm] = useState("");
 
+    const handleReply = (msg: Message) => {
+        setReplyingTo(msg);
+        setMenuOpenId(null);
+    };
     const currentConversationMessages = useMemo(() => {
         if (!selectedConversationId) return [];
 
@@ -500,6 +499,7 @@ export default function OneToOne({
                 conversationId: selectedConversationId,
                 text: trimmedMessage,
                 type: "text",
+                replyTo: replyingTo?.id,
                 clientMessageId: `${username}-${Date.now()}`,
             });
         }
@@ -507,6 +507,7 @@ export default function OneToOne({
         socket.emit("typingStopped", { conversationId: selectedConversationId });
 
         setMessage("");
+        setReplyingTo(null);
     };
 
     const handleTyping = (value: string) => {
@@ -516,32 +517,6 @@ export default function OneToOne({
 
         socket.emit(value.trim() ? "typingStarted" : "typingStopped", {
             conversationId: selectedConversationId,
-        });
-    };
-
-    /* Formatting */
-    const applyFormatting = (marker: string) => {
-        const input = messageInputRef.current;
-
-        if (!input) return;
-
-        const start = input.selectionStart ?? message.length;
-        const end = input.selectionEnd ?? message.length;
-        const selectedText = message.slice(start, end);
-
-        const newText =
-            message.slice(0, start) +
-            marker +
-            selectedText +
-            marker +
-            message.slice(end);
-
-        handleTyping(newText);
-        setShowFormatMenu(false);
-
-        requestAnimationFrame(() => {
-            input.focus();
-            input.setSelectionRange(start + marker.length, end + marker.length);
         });
     };
 
@@ -919,6 +894,7 @@ export default function OneToOne({
                 onSubmitEdit={submitEdit}
                 onCancelEdit={cancelEdit}
                 onToggleMenu={setMenuOpenId}
+                onReply={handleReply}
                 onForward={handleForwardMessage}
                 onDeleteForMe={(messageId) =>
                     openDeleteConfirmation([messageId], false)
@@ -934,13 +910,12 @@ export default function OneToOne({
                 onMessageChange={handleTyping}
                 messageInputRef={messageInputRef}
                 selectedFile={selectedFile}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
                 filePreviewUrl={filePreviewUrl}
                 fileInputRef={fileInputRef}
                 onFileSelect={handleFileSelect}
                 onClearAttachment={clearAttachment}
-                showFormatMenu={showFormatMenu}
-                onToggleFormatMenu={() => setShowFormatMenu((prev) => !prev)}
-                onApplyFormatting={applyFormatting}
                 onEmojiSelect={(emoji) => handleTyping(message + emoji)}
                 isRecording={isRecording}
                 recordingDuration={recordingDuration}

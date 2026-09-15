@@ -6,6 +6,7 @@ import { useState } from "react";
 import { CurrentUser } from "../store/authSlice";
 import bookbuddylogo from "../assets/bookbuddylogo.png";
 
+
 interface LoginProps {
     onLogin: (user: CurrentUser) => void;
 }

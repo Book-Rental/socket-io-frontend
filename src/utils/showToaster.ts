@@ -1,15 +1,29 @@
-export type ToastType = "success" | "error" | "loading" | "custom"
+import toast from "react-hot-toast";
+
+export type ToastType = "success" | "error" | "loading" | "custom";
 
 export const showToast = (
     message: string,
     type: ToastType
 ) => {
-    const event = new CustomEvent("app-toast-notification", {
-        detail: {
-            message,
-            type,
-        },
-    });
-    window.dispatchEvent(event);
+    switch (type) {
+        case "success":
+            toast.success(message);
+            break;
 
+        case "error":
+            toast.error(message);
+            break;
+
+        case "loading":
+            toast.loading(message);
+            break;
+
+        case "custom":
+            toast(message);
+            break;
+
+        default:
+            toast(message);
+    }
 };
