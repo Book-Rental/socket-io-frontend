@@ -19,6 +19,7 @@ export interface MessageContent {
 }
 export interface Message {
     id: string;
+    tempId: string;
     conversationId: string;
     senderId: string;
     type: "text" | "image" | "file" | "audio" | "video" | "location" | "contact" | "system";
@@ -30,8 +31,8 @@ export interface Message {
     forwarded?: boolean;
     forwardCount?: number;
     deletedAt?: string;
-    createdAt: string;
-    updatedAt: string;
+    createdAt?: string;
+    updatedAt?: string;
     replyTo?: ReplyToMessage;
 }
 

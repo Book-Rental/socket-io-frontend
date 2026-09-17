@@ -1,4 +1,4 @@
-import { FiSquare as FiSelect } from "react-icons/fi";
+import { FiMoreVertical } from "react-icons/fi";
 
 interface ChatHeaderProps {
     selectedUserName: string;
@@ -45,8 +45,9 @@ export default function ChatHeader({
                         onClick={onToggleSelectionMode}
                         className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-600"
                         title="Select messages"
+                        aria-label="Select messages"
                     >
-                        <FiSelect />
+                        <FiMoreVertical size={20} />
                     </button>
                 ) : (
                     <button

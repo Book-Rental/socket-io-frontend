@@ -6,6 +6,7 @@ export interface CurrentUser {
     firstName: string;
     lastName: string;
     email: string;
+    profilePic?: string;
 }
 
 interface AuthState {

@@ -73,10 +73,16 @@ export default function Header({
         searchTerm.trim().length === 0
             ? []
             : allUsers.filter((user) => {
-                  if (user._id === currentUserId) return false;
-                  const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-                  return fullName.includes(searchTerm.trim().toLowerCase());
-              });
+                if (user._id === currentUserId) return false;
+                const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+                return fullName.includes(searchTerm.trim().toLowerCase());
+            });
+    const loggedInUser = allUsers.find(
+        (user) => user._id === currentUserId
+    );
+
+    const profilePic = loggedInUser?.profilePic;
+
 
     return (
         <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
@@ -155,12 +161,11 @@ export default function Header({
                                     className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-blue-50"
                                 >
                                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-600">
-                                        {user.firstName.charAt(0).toUpperCase()}
-                                    </div>
+                                        {user.profilePic ? (<img src={user.profilePic} alt={`${user.firstName} ${user.lastName}`} className="h-8 w-8 shrink-0 rounded-full object-cover" />) : (<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-600"> {user.firstName.charAt(0).toUpperCase()} </div>)}                                    </div>
                                     <span className="truncate text-sm font-medium text-blue-600">
                                         {user.firstName} {user.lastName}
                                     </span>
-                                    
+
                                 </button>
                             ))
                         )}
@@ -190,8 +195,7 @@ export default function Header({
                                             className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-blue-50"
                                         >
                                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600">
-                                                {user.firstName.charAt(0).toUpperCase()}
-                                            </div>
+                                                {user.profilePic ? (<img src={user.profilePic} alt={`${user.firstName} ${user.lastName}`} className="h-8 w-8 shrink-0 rounded-full object-cover" />) : (<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600"> {user.firstName.charAt(0).toUpperCase()} </div>)}                                            </div>
                                             <span className="truncate text-sm font-medium text-emerald-600">
                                                 {user.firstName} {user.lastName}
                                             </span>
@@ -214,7 +218,16 @@ export default function Header({
                     onClick={() => setShowProfileMenu((prev) => !prev)}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white"
                 >
-                    {displayName.charAt(0).toUpperCase()}
+                    {profilePic ? (
+                        <img
+                            src={profilePic}
+                            alt="Profile"
+                            className="h-full w-full rounded-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-lg">{displayName.charAt(0).toUpperCase()}</span>
+
+                    )}
                 </button>
 
                 {showProfileMenu && (

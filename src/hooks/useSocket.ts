@@ -24,17 +24,17 @@ export function useSocket() {
         };
 
         const handleDisconnect = (reason: string) => {
-            console.log( "Socket disconnected:", reason );
+            console.log("Socket disconnected:", reason);
         };
 
         const handleConnectError = (error: Error) => {
-            console.error( "Socket connection error:", error.message );
+            console.error("Socket connection error:", error.message);
         };
 
-        socket.on( "onlineUsers", handleOnlineUsers );
-        socket.on( "connect",  handleConnect );
-        socket.on( "disconnect", handleDisconnect );
-        socket.on( "connect_error", handleConnectError );
+        socket.on("onlineUsers", handleOnlineUsers);
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
+        socket.on("connect_error", handleConnectError);
 
         const raw = localStorage.getItem(STORAGE_KEY);
         const savedUser = raw ? JSON.parse(raw) : null;
@@ -46,10 +46,11 @@ export function useSocket() {
         }
 
         return () => {
-            socket.off( "onlineUsers", handleOnlineUsers );
-            socket.off( "connect", handleConnect );
-            socket.off( "disconnect", handleDisconnect );
-            socket.off( "connect_error", handleConnectError );
+            //socket.off removes a previously registered Socket.IO event listener to prevent duplicate event handling and memory leaks.
+            socket.off("onlineUsers", handleOnlineUsers);
+            socket.off("connect", handleConnect);
+            socket.off("disconnect", handleDisconnect);
+            socket.off("connect_error", handleConnectError);
         };
     }, []);
 
