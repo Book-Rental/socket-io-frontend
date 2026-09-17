@@ -19,6 +19,7 @@ export interface MessageContent {
 }
 export interface Message {
     id: string;
+    tempId: string;
     conversationId: string;
     senderId: string;
     type: "text" | "image" | "file" | "audio" | "video" | "location" | "contact" | "system";

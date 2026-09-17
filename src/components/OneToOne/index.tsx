@@ -67,7 +67,7 @@ export default function OneToOne({
 
     const [message, setMessage] = useState("");
     const [typingUser, setTypingUser] = useState<string | null>(null);
-    const [editingMessageId, setEditingMessageId] = useState<string | null>(null );
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [editText, setEditText] = useState("");
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -137,7 +137,12 @@ export default function OneToOne({
     /* Incoming messages */
     useEffect(() => {
         const handleIncoming = (newMessage: Message) => {
-            if (newMessage.conversationId !== selectedConversationId) return;
+            if (
+                newMessage.conversationId !==
+                selectedConversationId
+            ) {
+                return;
+            }
 
             queryClient.setQueryData<Message[]>(
                 ["conversationMessages", selectedConversationId],
@@ -159,11 +164,9 @@ export default function OneToOne({
             );
         };
 
-        socket.on("messageNew", handleIncoming);
         socket.on("messageSent", handleIncoming);
 
         return () => {
-            socket.off("messageNew", handleIncoming);
             socket.off("messageSent", handleIncoming);
         };
     }, [queryClient, selectedConversationId]);
@@ -408,6 +411,7 @@ export default function OneToOne({
             showToast("You're offline. Reconnecting...", "error");
             return;
         }
+        const messageId = crypto.randomUUID();
 
         try {
             setIsUploading(true);
@@ -429,6 +433,7 @@ export default function OneToOne({
                 fileSize: uploaded.fileSize,
                 duration: recordingDuration,
                 clientMessageId: `${username}-${Date.now()}`,
+                tempId: messageId,
             });
 
             discardRecording();
@@ -468,6 +473,7 @@ export default function OneToOne({
             showToast("You're offline. Reconnecting...", "error");
             return;
         }
+        const messageId = crypto.randomUUID();
 
         if (selectedFile) {
             try {
@@ -484,6 +490,7 @@ export default function OneToOne({
                     fileSize: uploaded.fileSize,
                     caption: trimmedMessage || undefined,
                     clientMessageId: `${username}-${Date.now()}`,
+                    tempId: messageId,
                 });
 
                 clearAttachment();
@@ -495,12 +502,14 @@ export default function OneToOne({
                 setIsUploading(false);
             }
         } else {
+
             socket.emit("sendMessage", {
                 conversationId: selectedConversationId,
                 text: trimmedMessage,
                 type: "text",
                 replyTo: replyingTo?.id,
                 clientMessageId: `${username}-${Date.now()}`,
+                tempId: messageId,
             });
         }
 

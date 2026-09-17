@@ -5,6 +5,7 @@ export interface BookRentalUser {
     firstName: string;
     lastName: string;
     email: string;
+    profilePic?: string;
 }
 
 interface UsersPageResponse {
@@ -29,7 +30,9 @@ async function fetchUsersPage(page: number): Promise<UsersPageResponse> {
         credentials: "include",
     });
     if (!res.ok) throw new Error("Failed to fetch users page " + page);
-    return res.json();
+    const data: UsersPageResponse = await res.json();
+    console.log(data.data?.users?.slice(0, 5) || data.users?.slice(0, 5));
+    return data;
 }
 
 export async function fetchAllUsers(): Promise<BookRentalUser[]> {
@@ -51,6 +54,7 @@ export async function fetchAllUsers(): Promise<BookRentalUser[]> {
 
         if (page > 50) break;
     }
+    console.log("fetchAllUsers:", allUsers);
 
     return allUsers;
 }
