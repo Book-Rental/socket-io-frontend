@@ -31,8 +31,8 @@ export interface Message {
     forwarded?: boolean;
     forwardCount?: number;
     deletedAt?: string;
-    createdAt?: string;
-    updatedAt?: string;
+    createdAt: string;
+    updatedAt: string;
     replyTo?: ReplyToMessage;
 }
 

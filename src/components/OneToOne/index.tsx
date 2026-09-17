@@ -157,8 +157,8 @@ export default function OneToOne({
 
                     return [...previousMessages, newMessage].sort(
                         (a, b) =>
-                            new Date(a.createdAt ?? 0).getTime() -
-                            new Date(b.createdAt ?? 0).getTime()
+                            new Date(a.createdAt).getTime() -
+                            new Date(b.createdAt).getTime()
                     );
                 }
             );
