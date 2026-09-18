@@ -18,7 +18,7 @@ export interface MessageContent {
     contactPhone?: string;
 }
 export interface Message {
-    id: string;
+    id?: string;
     tempId: string;
     conversationId: string;
     senderId: string;

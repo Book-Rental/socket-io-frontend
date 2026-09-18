@@ -111,7 +111,9 @@ export default function OneToOne({
         useState<Set<string>>(new Set());
     const [isLoadingForwardList, setIsLoadingForwardList] = useState(false);
     const [forwardSearchTerm, setForwardSearchTerm] = useState("");
-
+    const getMessageId = (message: Message): string => {
+        return message.id ?? message.tempId;
+    };
     const handleReply = (msg: Message) => {
         setReplyingTo(msg);
         setMenuOpenId(null);
@@ -127,7 +129,7 @@ export default function OneToOne({
     const selectedMessages = useMemo(
         () =>
             currentConversationMessages.filter((msg) =>
-                selectedMessageIds.has(msg.id)
+                selectedMessageIds.has(getMessageId(msg))
             ),
         [currentConversationMessages, selectedMessageIds]
     );
@@ -137,21 +139,21 @@ export default function OneToOne({
     /* Incoming messages */
     useEffect(() => {
         const handleIncoming = (newMessage: Message) => {
-            if (
-                newMessage.conversationId !==
-                selectedConversationId
-            ) {
+            if (newMessage.conversationId !== selectedConversationId) {
                 return;
             }
 
             queryClient.setQueryData<Message[]>(
                 ["conversationMessages", selectedConversationId],
                 (previousMessages = []) => {
-                    if (
-                        previousMessages.some(
-                            (msg) => msg.id === newMessage.id
-                        )
-                    ) {
+                    const isDuplicate = previousMessages.some(
+                        (msg) =>
+                            (newMessage.id && msg.id === newMessage.id) ||
+                            (newMessage.tempId &&
+                                msg.tempId === newMessage.tempId)
+                    );
+
+                    if (isDuplicate) {
                         return previousMessages;
                     }
 
@@ -240,7 +242,7 @@ export default function OneToOne({
         }
 
         setSelectedMessageIds(
-            new Set(currentConversationMessages.map((msg) => msg.id))
+            new Set(currentConversationMessages.map(getMessageId))
         );
     };
 
@@ -507,7 +509,9 @@ export default function OneToOne({
                 conversationId: selectedConversationId,
                 text: trimmedMessage,
                 type: "text",
-                replyTo: replyingTo?.id,
+                replyTo: replyingTo
+                    ? getMessageId(replyingTo)
+                    : undefined,
                 clientMessageId: `${username}-${Date.now()}`,
                 tempId: messageId,
             });
@@ -531,7 +535,7 @@ export default function OneToOne({
 
     /* Edit */
     const startEdit = (msg: Message) => {
-        setEditingMessageId(msg.id);
+        setEditingMessageId(getMessageId(msg));
         setEditText(msg.content?.text ?? "");
         setMenuOpenId(null);
     };
@@ -702,9 +706,9 @@ export default function OneToOne({
 
         const messageIds =
             bulkForwardMessages.length > 0
-                ? bulkForwardMessages.map((msg) => msg.id)
+                ? bulkForwardMessages.map(getMessageId)
                 : forwardTarget
-                    ? [forwardTarget.id]
+                    ? [getMessageId(forwardTarget)]
                     : [];
 
         if (forwardMessages(messageIds, conversationIds)) {
@@ -729,7 +733,9 @@ export default function OneToOne({
             queryClient.setQueryData<Message[]>(
                 ["conversationMessages", selectedConversationId],
                 (previous = []) =>
-                    previous.map((msg) => (msg.id === updated.id ? updated : msg))
+                    previous.map((msg) => getMessageId(msg) === getMessageId(updated)
+                        ? updated
+                        : msg)
             );
         };
 
@@ -745,7 +751,7 @@ export default function OneToOne({
                 ["conversationMessages", selectedConversationId],
                 (previous = []) =>
                     previous.map((msg) =>
-                        msg.id === messageId
+                        getMessageId(msg) === messageId
                             ? { ...msg, deletedAt, content: undefined }
                             : msg
                     )
@@ -766,7 +772,7 @@ export default function OneToOne({
                 ["conversationMessages", selectedConversationId],
                 (previous = []) =>
                     previous.map((msg) =>
-                        msg.id === data.messageId
+                        getMessageId(msg) === data.messageId
                             ? { ...msg, status: data.status }
                             : msg
                     )
@@ -801,7 +807,7 @@ export default function OneToOne({
 
         socket.emit("messagesRead", {
             conversationId: selectedConversationId,
-            messageId: lastMessage.id,
+            messageId: getMessageId(lastMessage),
         });
     }, [currentConversationMessages, selectedConversationId, username]);
 
