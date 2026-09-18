@@ -143,15 +143,15 @@ export default function MessageBubble({
     onDeleteForEveryone,
 }: MessageBubbleProps) {
     const forwardCount =
-    msg.forwarded
-        ? Math.max(1, msg.forwardCount ?? 1)
-        : 0;
+        msg.forwarded
+            ? Math.max(1, msg.forwardCount ?? 1)
+            : 0;
 
     return (
         <div
             className={`flex ${mine ? "justify-end" : "justify-start"}`}
             onClick={() => {
-                if (selectionMode) onToggleSelect(msg.id);
+                if (selectionMode) onToggleSelect(msg.id ?? msg.tempId);
             }}
         >
             <div className="flex items-center gap-2">
@@ -160,7 +160,7 @@ export default function MessageBubble({
                         type="button"
                         onClick={(event) => {
                             event.stopPropagation();
-                            onToggleSelect(msg.id);
+                            onToggleSelect(msg.id ?? msg.tempId);
                         }}
                         className="shrink-0"
                     >

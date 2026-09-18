@@ -60,7 +60,7 @@ export default function MessageList({
     }, [messages]);
 
     return (
-        <div 
+        <div
             ref={messagesContainerRef}
             className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
 
@@ -107,7 +107,7 @@ export default function MessageList({
                         msg={msg}
                         mine={msg.senderId === username}
                         selectionMode={selectionMode}
-                        isSelected={selectedMessageIds.has(msg.id)}
+                        isSelected={selectedMessageIds.has(msg.id ?? msg.tempId)}
                         isEditing={editingMessageId === msg.id}
                         editText={editText}
                         isMenuOpen={menuOpenId === msg.id}
@@ -117,7 +117,7 @@ export default function MessageList({
                         onSubmitEdit={onSubmitEdit}
                         onCancelEdit={onCancelEdit}
                         onToggleMenu={onToggleMenu}
-                        onReply={onReply}   
+                        onReply={onReply}
                         onForward={onForward}
                         onDeleteForMe={onDeleteForMe}
                         onDeleteForEveryone={onDeleteForEveryone}

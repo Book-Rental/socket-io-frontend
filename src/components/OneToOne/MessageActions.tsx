@@ -37,13 +37,12 @@ export default function MessageActions({
                 onClick={(event) => {
                     event.stopPropagation();
 
-                    onToggleMenu(isMenuOpen ? null : msg.id);
+                    onToggleMenu(isMenuOpen ? null : (msg.id ?? msg.tempId));
                 }}
-                className={`rounded p-0.5 ${
-                    mine
-                        ? "text-white/70 hover:bg-white/10 hover:text-white"
-                        : "text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                }`}
+                className={`rounded p-0.5 ${mine
+                    ? "text-white/70 hover:bg-white/10 hover:text-white"
+                    : "text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                    }`}
                 aria-label="Message options"
             >
                 <FiMoreVertical />
@@ -51,9 +50,8 @@ export default function MessageActions({
 
             {isMenuOpen && (
                 <div
-                    className={`absolute top-6 z-50 w-44 overflow-hidden rounded-lg bg-blue-50 py-1 text-xs shadow-lg ${
-                        mine ? "right-0" : "left-0"
-                    }`}
+                    className={`absolute top-6 z-50 w-44 overflow-hidden rounded-lg bg-blue-50 py-1 text-xs shadow-lg ${mine ? "right-0" : "left-0"
+                        }`}
                 >
                     {/* Reply */}
                     <button
@@ -94,7 +92,7 @@ export default function MessageActions({
                     {mine && (
                         <button
                             type="button"
-                            onClick={() => onDeleteForMe(msg.id)}
+                            onClick={() => onDeleteForMe(msg.id ?? msg.tempId)}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-blue-700 hover:bg-blue-100"
                         >
                             <FiTrash2 className="shrink-0" />
@@ -106,7 +104,7 @@ export default function MessageActions({
                     {mine && (
                         <button
                             type="button"
-                            onClick={() => onDeleteForEveryone(msg.id)}
+                            onClick={() => onDeleteForEveryone(msg.id ?? msg.tempId)}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-red-100"
                         >
                             <FiTrash2 className="shrink-0" />
