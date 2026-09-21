@@ -103,7 +103,7 @@ export default function MessageList({
                 !isError &&
                 messages.map((msg) => (
                     <MessageBubble
-                        key={msg.id}
+                        key={msg.id ?? msg.tempId} // This particular MessageBubble represents this particular message. Keep track of it using this unique identifier.
                         msg={msg}
                         mine={msg.senderId === username}
                         selectionMode={selectionMode}
