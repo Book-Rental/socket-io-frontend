@@ -139,6 +139,7 @@ export default function OneToOne({
     /* Incoming messages */
     useEffect(() => {
         const handleIncoming = (newMessage: Message) => {
+            console.log("MESSAGE SENT RECEIVED IN FRONTEND:", newMessage);
             if (newMessage.conversationId !== selectedConversationId) {
                 return;
             }
