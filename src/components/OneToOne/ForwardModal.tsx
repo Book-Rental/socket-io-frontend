@@ -153,14 +153,14 @@ export default function ForwardModal({
                                             )
                                         }
                                         className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${isSelected
-                                                ? "bg-blue-50 text-blue-700"
-                                                : "text-slate-700 hover:bg-slate-100"
+                                            ? "bg-blue-50 text-blue-700"
+                                            : "text-slate-700 hover:bg-slate-100"
                                             }`}
                                     >
                                         <span
                                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${isSelected
-                                                    ? "border-blue-600 bg-blue-600 text-white"
-                                                    : "border-slate-300 bg-white"
+                                                ? "border-blue-600 bg-blue-600 text-white"
+                                                : "border-slate-300 bg-white"
                                                 }`}
                                         >
                                             {isSelected && (
@@ -184,13 +184,6 @@ export default function ForwardModal({
                                             )}
                                         </span>
 
-                                        <FiCornerUpRight
-                                            className={
-                                                isSelected
-                                                    ? "text-blue-600"
-                                                    : "text-slate-400"
-                                            }
-                                        />
                                     </button>
                                 );
                             })}

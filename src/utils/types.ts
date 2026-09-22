@@ -33,6 +33,9 @@ export interface Message {
     deletedAt?: string;
     createdAt: string;
     updatedAt: string;
+    deletedFor?: string[];
+    deletedForEveryone?: boolean;
+    deletedForMe?: boolean;
     replyTo?: ReplyToMessage;
 }
 

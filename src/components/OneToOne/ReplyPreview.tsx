@@ -8,9 +8,10 @@ interface ReplyPreviewProps {
 }
 
 function getReplyPreviewText(message: Message): string {
-    if (message.deletedAt) {
+    if (message.deletedForEveryone || message.deletedForMe) {
         return "This message was deleted";
     }
+
 
     if (message.type === "text") {
         return message.content?.text || "";
@@ -49,7 +50,7 @@ export default function ReplyPreview({
         <div className="flex items-center gap-3 border-l-4 border-blue-600 bg-blue-50 px-3 py-2">
             <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-blue-700">
-                    Replying to 
+                    Replying to
                     {/* {senderName} */}
                 </p>
 

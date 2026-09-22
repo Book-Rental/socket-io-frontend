@@ -101,28 +101,31 @@ export default function MessageList({
 
             {!isLoading &&
                 !isError &&
-                messages.map((msg) => (
-                    <MessageBubble
-                        key={msg.id ?? msg.tempId} // This particular MessageBubble represents this particular message. Keep track of it using this unique identifier.
-                        msg={msg}
-                        mine={msg.senderId === username}
-                        selectionMode={selectionMode}
-                        isSelected={selectedMessageIds.has(msg.id ?? msg.tempId)}
-                        isEditing={editingMessageId === msg.id}
-                        editText={editText}
-                        isMenuOpen={menuOpenId === msg.id}
-                        onToggleSelect={onToggleSelect}
-                        onStartEdit={onStartEdit}
-                        onEditTextChange={onEditTextChange}
-                        onSubmitEdit={onSubmitEdit}
-                        onCancelEdit={onCancelEdit}
-                        onToggleMenu={onToggleMenu}
-                        onReply={onReply}
-                        onForward={onForward}
-                        onDeleteForMe={onDeleteForMe}
-                        onDeleteForEveryone={onDeleteForEveryone}
-                    />
-                ))}
+                messages.map((msg) => {
+                    const messageId = msg.id ?? msg.tempId;   // ADD THIS
+                    return (
+                        <MessageBubble
+                            key={messageId}
+                            msg={msg}
+                            mine={msg.senderId === username}
+                            selectionMode={selectionMode}
+                            isSelected={selectedMessageIds.has(messageId)}
+                            isEditing={editingMessageId === messageId}     // was msg.id
+                            editText={editText}
+                            isMenuOpen={menuOpenId === messageId}           // was msg.id
+                            onToggleSelect={onToggleSelect}
+                            onStartEdit={onStartEdit}
+                            onEditTextChange={onEditTextChange}
+                            onSubmitEdit={onSubmitEdit}
+                            onCancelEdit={onCancelEdit}
+                            onToggleMenu={onToggleMenu}
+                            onReply={onReply}
+                            onForward={onForward}
+                            onDeleteForMe={onDeleteForMe}
+                            onDeleteForEveryone={onDeleteForEveryone}
+                        />
+                    );
+                })}
 
             {typingUser && (
                 <div className="text-sm text-slate-500">
