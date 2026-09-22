@@ -63,7 +63,7 @@ export default function OneToOne({
         data: messages = [],
         isLoading,
         isError,
-    } = useConversationHistory(selectedConversationId);
+    } = useConversationHistory(selectedConversationId, username);
 
     const [message, setMessage] = useState("");
     const [typingUser, setTypingUser] = useState<string | null>(null);
@@ -137,34 +137,30 @@ export default function OneToOne({
     const selectedCount = selectedMessageIds.size;
 
     /* Incoming messages */
+    /* Incoming messages */
     useEffect(() => {
         const handleIncoming = (newMessage: Message) => {
-            console.log("MESSAGE SENT RECEIVED IN FRONTEND:", newMessage);
-            if (newMessage.conversationId !== selectedConversationId) {
-                return;
-            }
-
             queryClient.setQueryData<Message[]>(
-                ["conversationMessages", selectedConversationId],
-                (previousMessages = []) => {
-                    const isDuplicate = previousMessages.some(
+                ["conversationMessages", newMessage.conversationId],
+                (previous = []) => {
+                    const isDuplicate = previous.some(
                         (msg) =>
                             (newMessage.id && msg.id === newMessage.id) ||
-                            (newMessage.tempId &&
-                                msg.tempId === newMessage.tempId)
+                            (newMessage.tempId && msg.tempId === newMessage.tempId)
                     );
-
-                    if (isDuplicate) {
-                        return previousMessages;
-                    }
-
-                    return [...previousMessages, newMessage].sort(
-                        (a, b) =>
-                            new Date(a.createdAt).getTime() -
-                            new Date(b.createdAt).getTime()
+                    if (isDuplicate) return previous;
+                    return [...previous, newMessage].sort(
+                        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                     );
                 }
             );
+
+            if (newMessage.senderId !== username && socket.connected) {
+                socket.emit("messageDelivered", {
+                    conversationId: newMessage.conversationId,
+                    messageId: newMessage.id ?? newMessage.tempId,
+                });
+            }
         };
 
         socket.on("messageSent", handleIncoming);
@@ -172,8 +168,7 @@ export default function OneToOne({
         return () => {
             socket.off("messageSent", handleIncoming);
         };
-    }, [queryClient, selectedConversationId]);
-
+    }, [queryClient, username]);
     /* Typing */
     useEffect(() => {
         const handleTyping = ({
@@ -729,54 +724,71 @@ export default function OneToOne({
     };
 
     /* Message updates */
+    /* Message updates */
     useEffect(() => {
         const updateMessage = (updated: Message) => {
             queryClient.setQueryData<Message[]>(
                 ["conversationMessages", selectedConversationId],
                 (previous = []) =>
-                    previous.map((msg) => getMessageId(msg) === getMessageId(updated)
-                        ? updated
-                        : msg)
+                    previous.map((msg) =>
+                        getMessageId(msg) === getMessageId(updated)
+                            ? updated
+                            : msg
+                    )
             );
         };
 
         const handleDeleted = ({
             messageId,
+            tempId,
             deletedAt,
+            forEveryone,
         }: {
             messageId: string;
+            tempId?: string;
             deletedAt: string;
             forEveryone: boolean;
         }) => {
             queryClient.setQueryData<Message[]>(
                 ["conversationMessages", selectedConversationId],
                 (previous = []) =>
-                    previous.map((msg) =>
-                        getMessageId(msg) === messageId
-                            ? { ...msg, deletedAt, content: undefined }
-                            : msg
-                    )
+                    previous.map((msg) => {
+                        const matches =
+                            msg.id === messageId || (tempId && msg.tempId === tempId);
+                        if (!matches) return msg;
+
+                        return forEveryone
+                            ? { ...msg, deletedAt, deletedForEveryone: true, content: undefined }
+                            : { ...msg, deletedForMe: true, content: undefined };
+                    })
             );
 
-            setSelectedMessageIds((previous) => {
-                const next = new Set(previous);
+            setSelectedMessageIds((prev) => {
+                const next = new Set(prev);
                 next.delete(messageId);
+                if (tempId) next.delete(tempId);
                 return next;
             });
         };
 
         const handleStatusUpdate = (data: {
-            messageId: string;
-            status: "delivered" | "read";
+            conversationId: string; messageId: string; tempId?: string; userId: string;
+            status: "delivered" | "read"; upToCreatedAt?: string;
         }) => {
+            if (data.conversationId !== selectedConversationId) return;
+
             queryClient.setQueryData<Message[]>(
                 ["conversationMessages", selectedConversationId],
                 (previous = []) =>
-                    previous.map((msg) =>
-                        getMessageId(msg) === data.messageId
-                            ? { ...msg, status: data.status }
-                            : msg
-                    )
+                    previous.map((msg) => {
+                        if (data.status === "read" && data.upToCreatedAt) {
+                            const isMine = msg.senderId === username;
+                            const inRange = new Date(msg.createdAt).getTime() <= new Date(data.upToCreatedAt!).getTime();
+                            return isMine && inRange && msg.status !== "read" ? { ...msg, status: "read" } : msg;
+                        }
+                        const isSame = msg.id === data.messageId || msg.tempId === data.tempId;
+                        return isSame ? { ...msg, status: data.status } : msg;
+                    })
             );
         };
 
@@ -864,13 +876,14 @@ export default function OneToOne({
     return (
         <div className="flex h-full min-h-0 flex-1 flex-col bg-white">
             <ChatHeader
+                selectedUser={selectedUser}
                 selectedUserName={selectedUserName}
                 isSelectedUserOnline={isSelectedUserOnline}
                 selectionMode={selectionMode}
                 onToggleSelectionMode={toggleSelectionMode}
                 onCancelSelection={clearSelection}
+                usersById={usersById}
             />
-
             {selectionMode && (
                 <BulkActionToolbar
                     selectedCount={selectedCount}

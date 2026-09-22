@@ -1,26 +1,51 @@
 import { FiMoreVertical } from "react-icons/fi";
+import { BookRentalUser } from "../../utils/userApi";
 
 interface ChatHeaderProps {
+    selectedUser: string | null;
     selectedUserName: string;
     isSelectedUserOnline: boolean;
     selectionMode: boolean;
     onToggleSelectionMode: () => void;
     onCancelSelection: () => void;
+    usersById: Record<string, BookRentalUser>;
 }
 
 export default function ChatHeader({
+    selectedUser,
     selectedUserName,
     isSelectedUserOnline,
     selectionMode,
     onToggleSelectionMode,
     onCancelSelection,
+    usersById,
 }: ChatHeaderProps) {
+    const otherUser = selectedUser ? usersById[selectedUser] : undefined;
+
     return (
         <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 font-semibold text-white sm:h-11 sm:w-11">
-                        {selectedUserName.charAt(0).toUpperCase()}
+                    <div className="relative shrink-0">
+                        {otherUser?.profilePic ? (
+                            <img
+                                src={otherUser.profilePic}
+                                alt={selectedUserName}
+                                className="h-10 w-10 rounded-full object-cover sm:h-11 sm:w-11"
+                            />
+                        ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600 sm:h-11 sm:w-11">
+                                {otherUser?.firstName?.charAt(0).toUpperCase() ||
+                                    selectedUserName.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+
+                        <span
+                            className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${isSelectedUserOnline
+                                    ? "bg-emerald-500"
+                                    : "bg-slate-300"
+                                }`}
+                        />
                     </div>
 
                     <div className="min-w-0">

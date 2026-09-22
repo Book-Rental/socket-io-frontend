@@ -22,23 +22,21 @@ export interface ConversationSearchResult {
 
 const CHAT_API_BASE = `${import.meta.env.VITE_CHAT_API_URL}/api/messages`;
 
+// utils/chatApi.ts
 export async function fetchConversationHistory(
-    conversationId: string
+    conversationId: string,
+    userId?: string
 ): Promise<Message[]> {
+    const url = new URL(`${CHAT_API_BASE}/conversation/${encodeURIComponent(conversationId)}`);
+    if (userId) url.searchParams.set("userId", userId);
 
-    const res = await fetch(
-        `${CHAT_API_BASE}/conversation/${encodeURIComponent(conversationId)}`,
-        { credentials: "include" }
-    );
+    const res = await fetch(url.toString(), { credentials: "include" });
 
     if (!res.ok) {
-        throw new Error(
-            "Failed to fetch conversation history"
-        );
+        throw new Error("Failed to fetch conversation history");
     }
 
     const data = await res.json();
-
     return (data.messages ?? []) as Message[];
 }
 

@@ -26,7 +26,7 @@ interface MessageBubbleProps {
 }
 
 function renderMessageContent(msg: Message) {
-    if (msg.deletedAt) {
+    if (msg.deletedForEveryone || msg.deletedForMe) {
         return (
             <p className="break-words text-sm italic opacity-60">
                 This message was deleted
@@ -77,13 +77,13 @@ function renderMessageContent(msg: Message) {
 
         case "audio":
             return (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                     <FiMic className="shrink-0 text-lg opacity-70" />
 
                     <audio
                         src={msg.content?.mediaUrl}
                         controls
-                        className="h-8 w-48 sm:w-56"
+                        className="h-8 w-52 sm:w-60"
                     />
 
                     {typeof msg.content?.duration === "number" && (
@@ -278,7 +278,7 @@ export default function MessageBubble({
                             })}
                         </span>
 
-                        {mine && !msg.deletedAt && (
+                        {mine && !msg.deletedForEveryone && !msg.deletedForMe && (
                             <span
                                 className={
                                     msg.status === "read"
@@ -292,8 +292,7 @@ export default function MessageBubble({
                             </span>
                         )}
                     </div>
-
-                    {!msg.deletedAt && !selectionMode && !isEditing && (
+                    {!msg.deletedForEveryone && !msg.deletedForMe && !selectionMode && !isEditing && (
                         <MessageActions
                             msg={msg}
                             mine={mine}
