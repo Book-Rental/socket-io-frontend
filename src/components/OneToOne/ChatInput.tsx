@@ -24,7 +24,7 @@ interface ChatInputProps {
     fileInputRef: React.RefObject<HTMLInputElement>;
     onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearAttachment: () => void;
-    onEmojiSelect: (emoji: string) => void;
+    onEmojiSelect: (emoji: string, savedRange: Range | null) => void;
     isRecording: boolean;
     recordingDuration: number;
     onStartRecording: () => void;
@@ -208,7 +208,10 @@ export default function ChatInput({
                             />
 
                             <TextFormatting editorRef={messageInputRef} />
-                            <EmojiPickerButton onEmojiSelect={onEmojiSelect} />
+                            <EmojiPickerButton
+                                onEmojiSelect={onEmojiSelect}
+                                messageInputRef={messageInputRef}
+                            />
 
                             <button
                                 type="button"

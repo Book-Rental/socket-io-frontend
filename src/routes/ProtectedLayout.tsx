@@ -6,13 +6,15 @@ import { useAllUsers } from "../hooks/queries/useAllUsers";
 import { useUserConversations } from "../hooks/queries/useUserConversations";
 import { useSocket } from "../hooks/useSocket";
 import { logoutUser } from "../store/authSlice";
-import { setSelectedConversation, resetNavigation, } from "../store/navigationSlice";
+import { setSelectedConversation, resetNavigation } from "../store/navigationSlice";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { socket } from "../socket";
 import { useQueryClient } from "@tanstack/react-query";
+import IncomingCallModal from "../components/IncomingCallModal";
+import VideoCall from "../components/OneToOne/VideoCall";
+import { CallProvider, useCall } from "../components/contexts/CallContext";
 
-
-export default function ProtectedLayout() {
+function ProtectedLayoutInner() {
     const dispatch = useAppDispatch();
     const queryClient = useQueryClient();
 
@@ -22,10 +24,8 @@ export default function ProtectedLayout() {
     const { data: allUsers = [] } = useAllUsers(Boolean(currentUser));
     const { onlineUsers: onlineUserIds } = useSocket();
 
-    const {
-        data: conversations = [],
-        isLoading: isConversationsLoading,
-    } = useUserConversations(currentUser?.id ?? null);
+    const { data: conversations = [], isLoading: isConversationsLoading } =
+        useUserConversations(currentUser?.id ?? null);
 
     const usersById = allUsers.reduce<Record<string, (typeof allUsers)[number]>>(
         (map, user) => {
@@ -35,15 +35,13 @@ export default function ProtectedLayout() {
         {}
     );
 
-    // Keep the sidebar's conversation list live: refetch whenever the
-    // backend tells us any conversation changed (new message sent/received).
+    const call = useCall();
+
     useEffect(() => {
         if (!currentUser) return;
 
         const handleConversationUpdated = () => {
-            queryClient.invalidateQueries({
-                queryKey: ["userConversations", currentUser.id],
-            });
+            queryClient.invalidateQueries({ queryKey: ["userConversations", currentUser.id] });
         };
 
         socket.on("conversationUpdated", handleConversationUpdated);
@@ -52,20 +50,26 @@ export default function ProtectedLayout() {
         };
     }, [currentUser, queryClient]);
 
-    if (!currentUser) {
-        return null;
-    }
+    if (!currentUser) return null;
 
     const handleLogout = async () => {
         dispatch(resetNavigation());
         queryClient.clear();
-
         await dispatch(logoutUser());
     };
 
+    const remoteUserName = call.remoteUserId
+        ? `${usersById[call.remoteUserId]?.firstName ?? ""} ${usersById[call.remoteUserId]?.lastName ?? ""}`.trim() ||
+        call.remoteUserId
+        : "";
+
+    const callerName = call.incomingCall
+        ? `${usersById[call.incomingCall.from]?.firstName ?? ""} ${usersById[call.incomingCall.from]?.lastName ?? ""}`.trim() ||
+        call.incomingCall.from
+        : "";
+
     return (
         <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-900">
-
             <Header
                 displayName={`${currentUser.firstName} ${currentUser.lastName}`}
                 allUsers={allUsers}
@@ -91,6 +95,38 @@ export default function ProtectedLayout() {
                 </main>
             </div>
 
+            {/* Global call UI — renders regardless of which screen/conversation is open */}
+            {call.callStatus === "ringing" && call.incomingCall && (
+                <IncomingCallModal
+                    callerName={callerName}
+                    callType={call.incomingCall.callType}
+                    onAccept={call.acceptCall}
+                    onReject={call.rejectCall}
+                />
+            )}
+
+            {(call.callStatus === "calling" || call.callStatus === "connected") && (
+                <VideoCall
+                    callStatus={call.callStatus}
+                    callType={call.callType}
+                    localStream={call.localStream}
+                    remoteStream={call.remoteStream}
+                    isMuted={call.isMuted}
+                    isCameraOff={call.isCameraOff}
+                    remoteUserName={remoteUserName}
+                    onToggleMute={call.toggleMute}
+                    onToggleCamera={call.toggleCamera}
+                    onEndCall={call.endCall}
+                />
+            )}
         </div>
+    );
+}
+
+export default function ProtectedLayout() {
+    return (
+        <CallProvider>
+            <ProtectedLayoutInner />
+        </CallProvider>
     );
 }

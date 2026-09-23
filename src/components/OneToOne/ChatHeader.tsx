@@ -1,4 +1,4 @@
-import { FiMoreVertical } from "react-icons/fi";
+import { FiMoreVertical, FiPhone, FiVideo } from "react-icons/fi";
 import { BookRentalUser } from "../../utils/userApi";
 
 interface ChatHeaderProps {
@@ -9,6 +9,8 @@ interface ChatHeaderProps {
     onToggleSelectionMode: () => void;
     onCancelSelection: () => void;
     usersById: Record<string, BookRentalUser>;
+    onStartAudioCall: () => void;   // NEW
+    onStartVideoCall: () => void;
 }
 
 export default function ChatHeader({
@@ -19,6 +21,8 @@ export default function ChatHeader({
     onToggleSelectionMode,
     onCancelSelection,
     usersById,
+    onStartAudioCall,   // NEW
+    onStartVideoCall,
 }: ChatHeaderProps) {
     const otherUser = selectedUser ? usersById[selectedUser] : undefined;
 
@@ -42,8 +46,8 @@ export default function ChatHeader({
 
                         <span
                             className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${isSelectedUserOnline
-                                    ? "bg-emerald-500"
-                                    : "bg-slate-300"
+                                ? "bg-emerald-500"
+                                : "bg-slate-300"
                                 }`}
                         />
                     </div>
@@ -55,8 +59,8 @@ export default function ChatHeader({
 
                         <p
                             className={`text-xs ${isSelectedUserOnline
-                                    ? "text-emerald-400"
-                                    : "text-slate-500"
+                                ? "text-emerald-400"
+                                : "text-slate-500"
                                 }`}
                         >
                             {isSelectedUserOnline ? "● Online" : "● Offline"}
@@ -64,7 +68,7 @@ export default function ChatHeader({
                     </div>
                 </div>
 
-                {!selectionMode ? (
+                {/* {!selectionMode ? (
                     <button
                         type="button"
                         onClick={onToggleSelectionMode}
@@ -82,7 +86,56 @@ export default function ChatHeader({
                     >
                         Cancel
                     </button>
-                )}
+                )} */}
+
+
+                <div className="flex items-center gap-1">
+                    {!selectionMode && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={onStartAudioCall}
+                                disabled={!isSelectedUserOnline}
+                                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"
+                                title="Audio call"
+                                aria-label="Start audio call"
+                            >
+                                <FiPhone size={18} />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={onStartVideoCall}
+                                disabled={!isSelectedUserOnline}
+                                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"
+                                title="Video call"
+                                aria-label="Start video call"
+                            >
+                                <FiVideo size={18} />
+                            </button>
+                        </>
+                    )}
+
+                    {!selectionMode ? (
+                        <button
+                            type="button"
+                            onClick={onToggleSelectionMode}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-600"
+                            title="Select messages"
+                            aria-label="Select messages"
+                        >
+                            <FiMoreVertical size={20} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={onCancelSelection}
+                            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
             </div>
         </header>
     );
