@@ -18,6 +18,7 @@ import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import ForwardModal from "./ForwardModal";
 import ChatHeader from "./ChatHeader";
+import { useCall } from "../contexts/CallContext";
 
 
 interface OneToOneProps {
@@ -49,7 +50,7 @@ export default function OneToOne({
     onlineUserIds,
 }: OneToOneProps) {
     const queryClient = useQueryClient();
-
+    const { startCall } = useCall();
     const selectedUserName = selectedUser
         ? `${usersById[selectedUser]?.firstName ?? ""} ${usersById[selectedUser]?.lastName ?? ""
             }`.trim() || selectedUser
@@ -528,6 +529,54 @@ export default function OneToOne({
             conversationId: selectedConversationId,
         });
     };
+    const handleEmojiSelect = (emoji: string, savedRange: Range | null) => {
+        const input = messageInputRef.current;
+
+        if (!input) return;
+
+        input.focus();
+
+        const selection = window.getSelection();
+
+        if (savedRange && input.contains(savedRange.commonAncestorContainer)) {
+            selection?.removeAllRanges();
+            selection?.addRange(savedRange);
+        } else {
+            const range = document.createRange();
+
+            range.selectNodeContents(input);
+            range.collapse(false);
+
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+        }
+
+        const currentSelection = window.getSelection();
+
+        if (!currentSelection || currentSelection.rangeCount === 0) {
+            return;
+        }
+
+        const range = currentSelection.getRangeAt(0);
+
+        const textNode = document.createTextNode(emoji);
+
+        range.insertNode(textNode);
+
+        range.setStartAfter(textNode);
+        range.collapse(true);
+
+        currentSelection.removeAllRanges();
+        currentSelection.addRange(range);
+
+        setMessage(input.innerText);
+
+        if (selectedConversationId && socket.connected) {
+            socket.emit("typingStarted", {
+                conversationId: selectedConversationId,
+            });
+        }
+    };
 
     /* Edit */
     const startEdit = (msg: Message) => {
@@ -883,6 +932,16 @@ export default function OneToOne({
                 onToggleSelectionMode={toggleSelectionMode}
                 onCancelSelection={clearSelection}
                 usersById={usersById}
+                onStartAudioCall={() => {
+                    if (selectedUser && selectedConversationId) {
+                        startCall(selectedUser, selectedConversationId, "audio");
+                    }
+                }}
+                onStartVideoCall={() => {
+                    if (selectedUser && selectedConversationId) {
+                        startCall(selectedUser, selectedConversationId, "video");
+                    }
+                }}
             />
             {selectionMode && (
                 <BulkActionToolbar
@@ -945,7 +1004,7 @@ export default function OneToOne({
                 fileInputRef={fileInputRef}
                 onFileSelect={handleFileSelect}
                 onClearAttachment={clearAttachment}
-                onEmojiSelect={(emoji) => handleTyping(message + emoji)}
+                onEmojiSelect={handleEmojiSelect}
                 isRecording={isRecording}
                 recordingDuration={recordingDuration}
                 onStartRecording={startRecording}
