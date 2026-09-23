@@ -24,6 +24,7 @@ export function useWebRTC() {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
+    const [callError, setCallError] = useState<string | null>(null);
 
     const pcRef = useRef<RTCPeerConnection | null>(null);
     const remoteUserRef = useRef<string | null>(null);
@@ -61,10 +62,20 @@ export function useWebRTC() {
         };
 
         pc.ontrack = (event) => {
+            console.log("Remote track received:", event.track.kind);
             setRemoteStream(event.streams[0]);
         };
 
+        pc.oniceconnectionstatechange = () => {
+            console.log("ICE connection state:", pc.iceConnectionState);
+            if (pc.iceConnectionState === "failed") {
+                setCallError("Connection failed — network may be blocking the call (try a different network, or a TURN server is likely needed).");
+                cleanup();
+            }
+        };
+
         pc.onconnectionstatechange = () => {
+            console.log("Peer connection state:", pc.connectionState);
             if (pc.connectionState === "connected") {
                 setCallStatus("connected");
             }
@@ -75,22 +86,37 @@ export function useWebRTC() {
 
         pcRef.current = pc;
         return pc;
-    }, []);
+    }, [cleanup]);
 
     const getLocalMedia = useCallback(async (type: "audio" | "video") => {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: type === "video",
-        });
-        localStreamRef.current = stream;
-        setLocalStream(stream);
-        return stream;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: type === "video",
+            });
+            localStreamRef.current = stream;
+            setLocalStream(stream);
+            return stream;
+        } catch (error) {
+            if (error instanceof DOMException) {
+                if (error.name === "NotReadableError") {
+                    throw new Error("Camera or microphone is already in use by another app or tab.");
+                }
+                if (error.name === "NotAllowedError") {
+                    throw new Error("Camera/microphone permission was denied.");
+                }
+                if (error.name === "NotFoundError") {
+                    throw new Error("No camera or microphone found on this device.");
+                }
+            }
+            throw error;
+        }
     }, []);
 
-    /** Caller side */
     const startCall = useCallback(
         async (targetUserId: string, conversationId: string, type: "audio" | "video") => {
             try {
+                setCallError(null);
                 setCallType(type);
                 setCallStatus("calling");
                 remoteUserRef.current = targetUserId;
@@ -107,17 +133,18 @@ export function useWebRTC() {
                 socket.emit("callUser", { to: targetUserId, conversationId, offer, callType: type });
             } catch (error) {
                 console.error("Failed to start call:", error);
+                setCallError(error instanceof Error ? error.message : "Failed to start call");
                 cleanup();
             }
         },
         [getLocalMedia, createPeerConnection, cleanup]
     );
 
-    /** Callee side */
     const acceptCall = useCallback(async () => {
         if (!incomingCall) return;
 
         try {
+            setCallError(null);
             const { from, offer, callType: incomingType, conversationId } = incomingCall;
             setCallType(incomingType);
             remoteUserRef.current = from;
@@ -144,6 +171,7 @@ export function useWebRTC() {
             setCallStatus("connected");
         } catch (error) {
             console.error("Failed to accept call:", error);
+            setCallError(error instanceof Error ? error.message : "Failed to accept call");
             cleanup();
         }
     }, [incomingCall, getLocalMedia, createPeerConnection, cleanup]);
@@ -174,11 +202,8 @@ export function useWebRTC() {
         setIsCameraOff((prev) => !prev);
     }, [isCameraOff]);
 
-    /* ---------- global socket listeners — registered once, app-wide ---------- */
     const registerListeners = useCallback(() => {
         const handleIncomingCall = (data: IncomingCallData) => {
-            // Global: ring regardless of which screen/conversation is open.
-            // If already on a call, auto-reject the new one (one call at a time).
             if (pcRef.current) {
                 socket.emit("rejectCall", { to: data.from, conversationId: data.conversationId });
                 return;
@@ -197,13 +222,17 @@ export function useWebRTC() {
             pendingCandidatesRef.current = [];
         };
 
+        // FIX: buffer candidates whenever pc doesn't exist yet OR remoteDescription isn't set —
+        // previously this returned silently when pc was null, permanently dropping every
+        // candidate the caller sends before the callee clicks Accept.
         const handleIceCandidate = async (data: { from: string; candidate: RTCIceCandidateInit }) => {
             const pc = pcRef.current;
-            if (!pc) return;
-            if (!pc.remoteDescription) {
+
+            if (!pc || !pc.remoteDescription) {
                 pendingCandidatesRef.current.push(data.candidate);
                 return;
             }
+
             try {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             } catch (error) {
@@ -213,7 +242,10 @@ export function useWebRTC() {
 
         const handleCallRejected = () => cleanup();
         const handleCallEnded = () => cleanup();
-        const handleCallUserOffline = () => cleanup();
+        const handleCallUserOffline = () => {
+            setCallError("That user is offline.");
+            cleanup();
+        };
 
         socket.on("incomingCall", handleIncomingCall);
         socket.on("callAnswered", handleCallAnswered);
@@ -234,7 +266,7 @@ export function useWebRTC() {
 
     return {
         callStatus, callType, incomingCall, remoteUserId,
-        localStream, remoteStream, isMuted, isCameraOff,
+        localStream, remoteStream, isMuted, isCameraOff, callError,
         startCall, acceptCall, rejectCall, endCall,
         toggleMute, toggleCamera, registerListeners,
     };

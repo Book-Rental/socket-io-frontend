@@ -63,7 +63,7 @@ export default function ChatHeader({
                                 : "text-slate-500"
                                 }`}
                         >
-                            {isSelectedUserOnline ? "● Online" : "● Offline"}
+                            {isSelectedUserOnline ? " Online" : " Offline"}
                         </p>
                     </div>
                 </div>
