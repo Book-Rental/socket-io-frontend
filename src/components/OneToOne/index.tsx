@@ -18,7 +18,7 @@ import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import ForwardModal from "./ForwardModal";
 import ChatHeader from "./ChatHeader";
-import { useCall } from "../contexts/CallContext";
+import { useCall } from "../contexts/useCall";
 
 
 interface OneToOneProps {
