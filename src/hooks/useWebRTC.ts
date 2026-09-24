@@ -2,9 +2,29 @@ import { useCallback, useRef, useState } from "react";
 import { socket } from "../socket";
 
 const ICE_SERVERS: RTCIceServer[] = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.relay.metered.ca:80" },
+    {
+        urls: "turn:global.relay.metered.ca:80",
+        username: "1607abc84a56877e94776a0d",
+        credential: "vEC/m+3L/7oulvYF",
+    },
+    {
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+        username: "1607abc84a56877e94776a0d",
+        credential: "vEC/m+3L/7oulvYF",
+    },
+    {
+        urls: "turn:global.relay.metered.ca:443",
+        username: "1607abc84a56877e94776a0d",
+        credential: "vEC/m+3L/7oulvYF",
+    },
+    {
+        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+        username: "1607abc84a56877e94776a0d",
+        credential: "vEC/m+3L/7oulvYF",
+    },
 ];
+
 
 export type CallStatus = "idle" | "calling" | "ringing" | "connected" | "ended";
 
@@ -13,6 +33,7 @@ export interface IncomingCallData {
     conversationId: string;
     offer: RTCSessionDescriptionInit;
     callType: "audio" | "video";
+    callId: string;
 }
 
 export function useWebRTC() {
@@ -31,13 +52,15 @@ export function useWebRTC() {
     const conversationIdRef = useRef<string | null>(null);
     const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
     const localStreamRef = useRef<MediaStream | null>(null);
-
+    const remoteStreamRef = useRef<MediaStream | null>(null);
+    const activeCallIdRef = useRef<string | null>(null);
     const cleanup = useCallback(() => {
         pcRef.current?.close();
         pcRef.current = null;
         localStreamRef.current?.getTracks().forEach((t) => t.stop());
         localStreamRef.current = null;
         setLocalStream(null);
+        remoteStreamRef.current = null;
         setRemoteStream(null);
         remoteUserRef.current = null;
         conversationIdRef.current = null;
@@ -49,7 +72,14 @@ export function useWebRTC() {
         setIsCameraOff(false);
     }, []);
 
-    const createPeerConnection = useCallback((remoteUserIdArg: string) => {
+    const createPeerConnection = useCallback((remoteUserIdArg: string, callId: string) => {
+        if (pcRef.current) {
+            pcRef.current.close();
+            pcRef.current = null;
+        }
+        pendingCandidatesRef.current = [];
+        remoteStreamRef.current = null;
+
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
         pc.onicecandidate = (event) => {
@@ -57,19 +87,24 @@ export function useWebRTC() {
                 socket.emit("iceCandidate", {
                     to: remoteUserIdArg,
                     candidate: event.candidate.toJSON(),
+                    callId,   // NEW
                 });
             }
         };
 
         pc.ontrack = (event) => {
             console.log("Remote track received:", event.track.kind);
-            setRemoteStream(event.streams[0]);
+            if (!remoteStreamRef.current) {
+                remoteStreamRef.current = new MediaStream();
+                setRemoteStream(remoteStreamRef.current);
+            }
+            remoteStreamRef.current.addTrack(event.track);
         };
 
         pc.oniceconnectionstatechange = () => {
             console.log("ICE connection state:", pc.iceConnectionState);
             if (pc.iceConnectionState === "failed") {
-                setCallError("Connection failed — network may be blocking the call (try a different network, or a TURN server is likely needed).");
+                setCallError("Connection failed — a TURN server is likely needed for this network.");
                 cleanup();
             }
         };
@@ -77,7 +112,7 @@ export function useWebRTC() {
         pc.onconnectionstatechange = () => {
             console.log("Peer connection state:", pc.connectionState);
             if (pc.connectionState === "connected") {
-                setCallStatus("connected");
+                setCallStatus("connected");   // Priority 5: ONLY place this is set
             }
             if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
                 setCallStatus((prev) => (prev === "idle" ? prev : "ended"));
@@ -87,7 +122,6 @@ export function useWebRTC() {
         pcRef.current = pc;
         return pc;
     }, [cleanup]);
-
     const getLocalMedia = useCallback(async (type: "audio" | "video") => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -123,14 +157,17 @@ export function useWebRTC() {
                 conversationIdRef.current = conversationId;
                 setRemoteUserId(targetUserId);
 
+                const callId = crypto.randomUUID();
+                activeCallIdRef.current = callId;
+
                 const stream = await getLocalMedia(type);
-                const pc = createPeerConnection(targetUserId);
+                const pc = createPeerConnection(targetUserId, callId);
                 stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
 
-                socket.emit("callUser", { to: targetUserId, conversationId, offer, callType: type });
+                socket.emit("callUser", { to: targetUserId, conversationId, offer, callType: type, callId });
             } catch (error) {
                 console.error("Failed to start call:", error);
                 setCallError(error instanceof Error ? error.message : "Failed to start call");
@@ -145,14 +182,15 @@ export function useWebRTC() {
 
         try {
             setCallError(null);
-            const { from, offer, callType: incomingType, conversationId } = incomingCall;
+            const { from, offer, callType: incomingType, conversationId, callId } = incomingCall;
+            activeCallIdRef.current = callId;
             setCallType(incomingType);
             remoteUserRef.current = from;
             conversationIdRef.current = conversationId;
             setRemoteUserId(from);
 
             const stream = await getLocalMedia(incomingType);
-            const pc = createPeerConnection(from);
+            const pc = createPeerConnection(from, callId);
             stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -165,10 +203,10 @@ export function useWebRTC() {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
-            socket.emit("answerCall", { to: from, conversationId, answer });
+            socket.emit("answerCall", { to: from, conversationId, answer, callId });
 
             setIncomingCall(null);
-            setCallStatus("connected");
+            // connected is now set ONLY by onconnectionstatechange — see Priority 5
         } catch (error) {
             console.error("Failed to accept call:", error);
             setCallError(error instanceof Error ? error.message : "Failed to accept call");
@@ -212,9 +250,11 @@ export function useWebRTC() {
             setCallStatus("ringing");
         };
 
-        const handleCallAnswered = async (data: { from: string; conversationId: string; answer: RTCSessionDescriptionInit }) => {
+        const handleCallAnswered = async (data: { from: string; conversationId: string; answer: RTCSessionDescriptionInit; callId: string }) => {
             const pc = pcRef.current;
-            if (!pc) return;
+            if (!pc || pc.signalingState === "closed") return;
+            if (data.callId !== activeCallIdRef.current) return;   // NEW: ignore stale/mismatched call
+
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
             for (const candidate of pendingCandidatesRef.current) {
                 await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -222,13 +262,14 @@ export function useWebRTC() {
             pendingCandidatesRef.current = [];
         };
 
-        // FIX: buffer candidates whenever pc doesn't exist yet OR remoteDescription isn't set —
-        // previously this returned silently when pc was null, permanently dropping every
-        // candidate the caller sends before the callee clicks Accept.
-        const handleIceCandidate = async (data: { from: string; candidate: RTCIceCandidateInit }) => {
+        const handleIceCandidate = async (data: { from: string; candidate: RTCIceCandidateInit; callId: string }) => {
+            if (activeCallIdRef.current && data.callId !== activeCallIdRef.current) return; // NEW: ignore old call's candidates
+
             const pc = pcRef.current;
 
-            if (!pc || !pc.remoteDescription) {
+            if (!pc || pc.signalingState === "closed") return;
+
+            if (!pc.remoteDescription) {
                 pendingCandidatesRef.current.push(data.candidate);
                 return;
             }
@@ -239,7 +280,6 @@ export function useWebRTC() {
                 console.error("Failed to add ICE candidate:", error);
             }
         };
-
         const handleCallRejected = () => cleanup();
         const handleCallEnded = () => cleanup();
         const handleCallUserOffline = () => {
