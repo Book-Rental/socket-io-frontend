@@ -12,7 +12,8 @@ import { socket } from "../socket";
 import { useQueryClient } from "@tanstack/react-query";
 import IncomingCallModal from "../components/IncomingCallModal";
 import VideoCall from "../components/OneToOne/VideoCall";
-import { CallProvider, useCall } from "../components/contexts/CallContext";
+import { useCall } from "../components/contexts/useCall";
+import { CallProvider } from "../components/contexts/CallContext";
 
 function ProtectedLayoutInner() {
     const dispatch = useAppDispatch();
@@ -115,6 +116,8 @@ function ProtectedLayoutInner() {
                     isCameraOff={call.isCameraOff}
                     remoteUserName={remoteUserName}
                     onToggleMute={call.toggleMute}
+                    callError={call.callError}
+
                     onToggleCamera={call.toggleCamera}
                     onEndCall={call.endCall}
                 />

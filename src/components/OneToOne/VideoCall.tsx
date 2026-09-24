@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { FiMic, FiMicOff, FiPhoneOff, FiVideo, FiVideoOff, FiMinimize2 } from "react-icons/fi";
+import {
+    FiMic,
+    FiMicOff,
+    FiPhoneOff,
+    FiVideo,
+    FiVideoOff,
+    FiMinimize2,
+} from "react-icons/fi";
 import { CallStatus } from "../../hooks/useWebRTC";
-
 interface VideoCallProps {
     callStatus: CallStatus;
     callType: "audio" | "video";
@@ -13,6 +19,7 @@ interface VideoCallProps {
     onToggleMute: () => void;
     onToggleCamera: () => void;
     onEndCall: () => void;
+    callError: string | null;
 }
 
 export default function VideoCall({
@@ -25,36 +32,46 @@ export default function VideoCall({
     remoteUserName,
     onToggleMute,
     onToggleCamera,
+    callError,
     onEndCall,
 }: VideoCallProps) {
     const [isMinimized, setIsMinimized] = useState(false);
-    const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-    const localVideoRef = useRef<HTMLVideoElement | null>(null);
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    const localVideoRef = useRef<HTMLVideoElement>(null);
+    const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
-    // srcObject is set exactly once per stream change — never re-triggered
-    // by isMinimized toggling, since these elements never unmount.
     useEffect(() => {
-        const el = remoteVideoRef.current;
-        if (!el || el.srcObject === remoteStream) return;
-        el.srcObject = remoteStream;
+        const video = remoteVideoRef.current;
+        const audio = remoteAudioRef.current;
+
+        if (video) video.srcObject = remoteStream;
+        if (audio) audio.srcObject = remoteStream;
+
         if (remoteStream) {
-            el.play().catch((err) => console.warn("Remote media autoplay blocked:", err));
+            video?.play().catch(() => { });
+            audio?.play().catch(() => { });
         }
     }, [remoteStream]);
 
     useEffect(() => {
-        const el = localVideoRef.current;
-        if (!el || el.srcObject === localStream) return;
-        el.srcObject = localStream;
+        const video = localVideoRef.current;
+
+        if (!video) return;
+
+        video.srcObject = localStream;
+
         if (localStream) {
-            el.play().catch((err) => console.warn("Local media autoplay blocked:", err));
+            video.play().catch(() => { });
         }
     }, [localStream]);
 
     if (callStatus === "idle") return null;
 
-    const showRemoteVideo = callType === "video" && Boolean(remoteStream);
-    const showLocalPreview = callType === "video" && Boolean(localStream) && !isMinimized;
+    const showRemoteVideo =
+        callType === "video" && !!remoteStream?.getVideoTracks().length;
+
+    const showLocalPreview =
+        callType === "video" && !!localStream && !isMinimized;
 
     return (
         <div
@@ -65,40 +82,45 @@ export default function VideoCall({
                     : "fixed bottom-4 right-4 z-50 flex h-[420px] w-80 flex-col overflow-hidden rounded-2xl bg-slate-900 shadow-2xl sm:h-[480px] sm:w-96"
             }
         >
+            {callError && (
+                <div className="absolute left-1/2 top-4 z-[60] -translate-x-1/2 rounded-lg bg-red-600 px-4 py-3 text-sm text-white shadow-lg">
+                    {callError}
+                </div>
+            )}
+            <audio ref={remoteAudioRef} autoPlay />
+
             <div className="relative flex-1">
-                {/* Always mounted — carries both audio + video tracks.
-                    Hidden via CSS (not unmounted) when there's no video
-                    to show, so audio keeps playing regardless. */}
                 <video
                     ref={remoteVideoRef}
                     autoPlay
                     playsInline
-                    className={showRemoteVideo ? "h-full w-full object-cover" : "hidden"}
+                    className={
+                        showRemoteVideo
+                            ? "h-full w-full object-cover"
+                            : "hidden"
+                    }
                 />
 
                 {!showRemoteVideo && (
                     <div className="flex h-full w-full items-center justify-center">
-                        {isMinimized ? (
-                            <div className="flex h-full w-full items-center justify-center bg-blue-600 text-xl font-semibold text-white">
+                        <div className="text-center text-white">
+                            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-2xl font-semibold">
                                 {remoteUserName.charAt(0).toUpperCase()}
                             </div>
-                        ) : (
-                            <div className="text-center text-white">
-                                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-2xl font-semibold">
-                                    {remoteUserName.charAt(0).toUpperCase()}
-                                </div>
-                                <p className="text-base font-medium">{remoteUserName}</p>
-                                <p className="mt-1 text-xs text-slate-400">
-                                    {callStatus === "calling" && "Calling..."}
-                                    {callStatus === "ringing" && "Ringing..."}
-                                    {callStatus === "connected" && "Connected"}
-                                </p>
-                            </div>
-                        )}
+
+                            <p className="text-base font-medium">
+                                {remoteUserName}
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                                {callStatus === "calling" && "Calling..."}
+                                {callStatus === "ringing" && "Ringing..."}
+                                {callStatus === "connected" && "Connected"}
+                            </p>
+                        </div>
                     </div>
                 )}
 
-                {/* Local preview — always mounted too, hidden via CSS. */}
                 <video
                     ref={localVideoRef}
                     autoPlay
@@ -124,10 +146,6 @@ export default function VideoCall({
                         <FiMinimize2 size={14} />
                     </button>
                 )}
-
-                {isMinimized && (
-                    <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500" />
-                )}
             </div>
 
             {!isMinimized && (
@@ -135,18 +153,32 @@ export default function VideoCall({
                     <button
                         type="button"
                         onClick={onToggleMute}
-                        className={`flex h-10 w-10 items-center justify-center rounded-full ${isMuted ? "bg-white text-slate-900" : "bg-white/20 text-white"}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-full ${isMuted
+                            ? "bg-white text-slate-900"
+                            : "bg-white/20 text-white"
+                            }`}
                     >
-                        {isMuted ? <FiMicOff size={16} /> : <FiMic size={16} />}
+                        {isMuted ? (
+                            <FiMicOff size={16} />
+                        ) : (
+                            <FiMic size={16} />
+                        )}
                     </button>
 
                     {callType === "video" && (
                         <button
                             type="button"
                             onClick={onToggleCamera}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full ${isCameraOff ? "bg-white text-slate-900" : "bg-white/20 text-white"}`}
+                            className={`flex h-10 w-10 items-center justify-center rounded-full ${isCameraOff
+                                ? "bg-white text-slate-900"
+                                : "bg-white/20 text-white"
+                                }`}
                         >
-                            {isCameraOff ? <FiVideoOff size={16} /> : <FiVideo size={16} />}
+                            {isCameraOff ? (
+                                <FiVideoOff size={16} />
+                            ) : (
+                                <FiVideo size={16} />
+                            )}
                         </button>
                     )}
 
