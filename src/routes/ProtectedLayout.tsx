@@ -106,7 +106,7 @@ function ProtectedLayoutInner() {
                 />
             )}
 
-            {(call.callStatus === "calling" || call.callStatus === "connected") && (
+            {(call.callStatus === "calling" || call.callStatus === "connected" || call.callStatus === "ended") && (
                 <VideoCall
                     callStatus={call.callStatus}
                     callType={call.callType}
@@ -115,9 +115,8 @@ function ProtectedLayoutInner() {
                     isMuted={call.isMuted}
                     isCameraOff={call.isCameraOff}
                     remoteUserName={remoteUserName}
-                    onToggleMute={call.toggleMute}
                     callError={call.callError}
-
+                    onToggleMute={call.toggleMute}
                     onToggleCamera={call.toggleCamera}
                     onEndCall={call.endCall}
                 />
