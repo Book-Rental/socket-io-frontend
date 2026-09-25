@@ -9,6 +9,8 @@ const ICE_SERVERS: RTCIceServer[] = [
     { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "1607abc84a56877e94776a0d", credential: "vEC/m+3L/7oulvYF" },
 ];
 
+const DISCONNECT_GRACE_MS = 6000;
+
 export type CallStatus = "idle" | "calling" | "ringing" | "connected" | "ended";
 
 export interface IncomingCallData {
@@ -17,6 +19,51 @@ export interface IncomingCallData {
     offer: RTCSessionDescriptionInit;
     callType: "audio" | "video";
     callId: string;
+}
+interface RTCIceCandidateStatsLike extends RTCStats {
+    candidateType?: string;
+    protocol?: string;
+    address?: string;
+    ip?: string;
+}
+
+interface RTCIceCandidatePairStatsLike extends RTCStats {
+    state?: string;
+    nominated?: boolean;
+    localCandidateId?: string;
+    remoteCandidateId?: string;
+}
+
+async function logFailureStats(pc: RTCPeerConnection, label: string) {
+    try {
+        const stats = await pc.getStats();
+        const candidates = new Map<string, RTCIceCandidateStatsLike>();
+        const pairs: RTCIceCandidatePairStatsLike[] = [];
+        stats.forEach((report) => {
+            if (report.type === "local-candidate" || report.type === "remote-candidate") {
+                candidates.set(report.id, report as RTCIceCandidateStatsLike);
+            }
+            if (report.type === "candidate-pair") {
+                pairs.push(report as RTCIceCandidatePairStatsLike);
+            }
+        });
+        console.groupCollapsed(`[WebRTC] ${label}: candidate-pair dump (${pairs.length} pairs)`);
+        if (pairs.length === 0) {
+            console.log("No candidate pairs formed at all — candidates likely never arrived from the remote peer.");
+        }
+        pairs.forEach((p) => {
+            const local = p.localCandidateId ? candidates.get(p.localCandidateId) : undefined;
+            const remote = p.remoteCandidateId ? candidates.get(p.remoteCandidateId) : undefined;
+            console.log(
+                `pair state=${p.state} nominated=${!!p.nominated}`,
+                "| local:", local?.candidateType, local?.protocol, local?.address ?? local?.ip,
+                "| remote:", remote?.candidateType, remote?.protocol, remote?.address ?? remote?.ip
+            );
+        });
+        console.groupEnd();
+    } catch (err) {
+        console.warn(`[WebRTC] ${label}: failed to read stats`, err);
+    }
 }
 
 export function useWebRTC() {
@@ -38,6 +85,13 @@ export function useWebRTC() {
     const remoteStreamRef = useRef<MediaStream | null>(null);
     const activeCallIdRef = useRef<string | null>(null);
     const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+    const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMutedRef = useRef(false);
+    const isCameraOffRef = useRef(false);
+
+    const acquiringMediaRef = useRef(false);
+
+    const callInProgressRef = useRef(false);
 
     const startRingtone = useCallback(() => {
         if (!ringtoneRef.current) {
@@ -53,8 +107,16 @@ export function useWebRTC() {
         if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
     }, []);
 
+    const clearDisconnectTimer = useCallback(() => {
+        if (disconnectTimerRef.current) {
+            clearTimeout(disconnectTimerRef.current);
+            disconnectTimerRef.current = null;
+        }
+    }, []);
+
     const cleanup = useCallback(() => {
         stopRingtone();
+        clearDisconnectTimer();
         pcRef.current?.close();
         pcRef.current = null;
         localStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -67,15 +129,17 @@ export function useWebRTC() {
         setCallStatus("idle");
         setIsMuted(false);
         setIsCameraOff(false);
+        isMutedRef.current = false;
+        isCameraOffRef.current = false;
         remoteUserRef.current = null;
         conversationIdRef.current = null;
         pendingCandidatesRef.current = [];
         activeCallIdRef.current = null;
-    }, [stopRingtone]);
+        callInProgressRef.current = false;
+    }, [stopRingtone, clearDisconnectTimer]);
 
     const createPeerConnection = useCallback((remoteId: string, callId: string) => {
-        // Close any stale connection BEFORE creating the new one, and make
-        // sure its old event handlers can never affect state going forward.
+
         if (pcRef.current) {
             const stalePc = pcRef.current;
             stalePc.onconnectionstatechange = null;
@@ -87,11 +151,10 @@ export function useWebRTC() {
         pcRef.current = null;
         pendingCandidatesRef.current = [];
         remoteStreamRef.current = null;
+        clearDisconnectTimer();
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-        // Guard: only apply state updates if this pc is STILL the active one
-        // by the time these handlers fire (prevents stale-handler races).
         const isCurrent = () => pcRef.current === pc;
 
         pc.onicecandidate = (event) => {
@@ -117,7 +180,13 @@ export function useWebRTC() {
         pc.oniceconnectionstatechange = () => {
             if (!isCurrent()) return;
             console.log("ICE connection state:", pc.iceConnectionState);
-            if (pc.iceConnectionState === "failed") {
+
+            if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+                clearDisconnectTimer();
+                stopRingtone();
+                setCallStatus((prev) => (prev === "ended" ? prev : "connected"));
+            } else if (pc.iceConnectionState === "failed") {
+                logFailureStats(pc, "iceConnectionState=failed");
                 setCallError("Call failed to connect. This can happen on restrictive networks — try again, or check your connection.");
                 cleanup();
             }
@@ -126,13 +195,30 @@ export function useWebRTC() {
         pc.onconnectionstatechange = () => {
             if (!isCurrent()) return;
             console.log("Peer connection state:", pc.connectionState);
+
             if (pc.connectionState === "connected") {
+                clearDisconnectTimer();
                 stopRingtone();
                 setCallStatus("connected");
+            } else if (pc.connectionState === "disconnected") {
+
+                clearDisconnectTimer();
+                disconnectTimerRef.current = setTimeout(() => {
+                    if (!isCurrent()) return;
+                    if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+                        console.warn("Connection did not recover from 'disconnected' within grace period — ending call.");
+                        setCallError("Connection lost.");
+                        cleanup();
+                    }
+                }, DISCONNECT_GRACE_MS);
             } else if (pc.connectionState === "failed") {
-                setCallError("Call failed to connect.");
+                clearDisconnectTimer();
+                console.error("Peer connection failed");
+                logFailureStats(pc, "connectionState=failed");
+                setCallError("Connection failed. Check the network or TURN server.");
                 cleanup();
-            } else if (["disconnected", "closed"].includes(pc.connectionState)) {
+            } else if (pc.connectionState === "closed") {
+                clearDisconnectTimer();
                 stopRingtone();
                 setCallStatus((prev) => (prev === "idle" ? prev : "ended"));
             }
@@ -140,25 +226,57 @@ export function useWebRTC() {
 
         pcRef.current = pc;
         return pc;
-    }, [cleanup, stopRingtone]);
+    }, [cleanup, stopRingtone, clearDisconnectTimer]);
+
+    const acquireMedia = useCallback((type: "audio" | "video") => {
+        return navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
+    }, []);
 
     const getLocalMedia = useCallback(async (type: "audio" | "video") => {
+
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((t) => t.stop());
+            localStreamRef.current = null;
+            setLocalStream(null);
+        }
+
+        if (acquiringMediaRef.current) {
+            throw new Error("Already connecting to the camera/microphone — please wait a moment.");
+        }
+        acquiringMediaRef.current = true;
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
+            let stream: MediaStream;
+            try {
+                stream = await acquireMedia(type);
+            } catch (error) {
+                if (error instanceof DOMException && error.name === "NotReadableError") {
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    stream = await acquireMedia(type);
+                } else {
+                    throw error;
+                }
+            }
             localStreamRef.current = stream;
             setLocalStream(stream);
             return stream;
         } catch (error) {
             if (error instanceof DOMException) {
-                if (error.name === "NotReadableError") throw new Error("Camera or microphone is already in use.");
+                if (error.name === "NotReadableError") {
+                    throw new Error("Camera or microphone is already in use by another app or browser tab. Close anything else using it and try again.");
+                }
                 if (error.name === "NotAllowedError") throw new Error("Camera/microphone permission was denied.");
                 if (error.name === "NotFoundError") throw new Error("No camera or microphone found.");
             }
             throw error;
+        } finally {
+            acquiringMediaRef.current = false;
         }
-    }, []);
+    }, [acquireMedia]);
 
     const startCall = useCallback(async (targetUserId: string, conversationId: string, type: "audio" | "video") => {
+        if (callInProgressRef.current) return;
+        callInProgressRef.current = true;
         try {
             setCallError(null);
             setCallType(type);
@@ -188,6 +306,8 @@ export function useWebRTC() {
 
     const acceptCall = useCallback(async () => {
         if (!incomingCall) return;
+        if (callInProgressRef.current) return;
+        callInProgressRef.current = true;
 
         try {
             stopRingtone();
@@ -248,18 +368,18 @@ export function useWebRTC() {
 
     const toggleMute = useCallback(() => {
         if (!localStreamRef.current) return;
-        setIsMuted((prev) => {
-            localStreamRef.current?.getAudioTracks().forEach((t) => (t.enabled = prev));
-            return !prev;
-        });
+        const next = !isMutedRef.current;
+        localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = !next));
+        isMutedRef.current = next;
+        setIsMuted(next);
     }, []);
 
     const toggleCamera = useCallback(() => {
         if (!localStreamRef.current) return;
-        setIsCameraOff((prev) => {
-            localStreamRef.current?.getVideoTracks().forEach((t) => (t.enabled = prev));
-            return !prev;
-        });
+        const next = !isCameraOffRef.current;
+        localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = !next));
+        isCameraOffRef.current = next;
+        setIsCameraOff(next);
     }, []);
 
     const registerListeners = useCallback(() => {
