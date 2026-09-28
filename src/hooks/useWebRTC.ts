@@ -1,14 +1,22 @@
 import { useCallback, useRef, useState } from "react";
 import { socket } from "../socket";
 
+const TURN_USER = import.meta.env.VITE_TURN_USER;
+const TURN_PASS = import.meta.env.VITE_TURN_PASS;
+const HAS_TURN = Boolean(TURN_USER && TURN_PASS);
+console.log("[WebRTC] TURN configured:", HAS_TURN);
+
 const ICE_SERVERS: RTCIceServer[] = [
     { urls: "stun:stun.relay.metered.ca:80" },
-    { urls: "turn:global.relay.metered.ca:80", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
-    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
-    { urls: "turn:global.relay.metered.ca:443", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
-    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
+    ...(HAS_TURN
+        ? [
+            { urls: "turn:global.relay.metered.ca:80", username: TURN_USER, credential: TURN_PASS },
+            { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: TURN_USER, credential: TURN_PASS },
+            { urls: "turn:global.relay.metered.ca:443", username: TURN_USER, credential: TURN_PASS },
+            { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: TURN_USER, credential: TURN_PASS },
+        ]
+        : []),
 ];
-
 const DISCONNECT_GRACE_MS = 6000;
 
 export type CallStatus = "idle" | "calling" | "ringing" | "connected" | "ended";
@@ -65,7 +73,19 @@ async function logFailureStats(pc: RTCPeerConnection, label: string) {
         console.warn(`[WebRTC] ${label}: failed to read stats`, err);
     }
 }
-
+function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 4000): Promise<void> {
+    return new Promise((resolve) => {
+        if (pc.iceGatheringState === "complete") return resolve();
+        const finish = () => {
+            pc.removeEventListener("icegatheringstatechange", onChange);
+            clearTimeout(timer);
+            resolve();
+        };
+        const onChange = () => { if (pc.iceGatheringState === "complete") finish(); };
+        const timer = setTimeout(finish, timeoutMs);
+        pc.addEventListener("icegatheringstatechange", onChange);
+    });
+}
 export function useWebRTC() {
     const [callStatus, setCallStatus] = useState<CallStatus>("idle");
     const [callType, setCallType] = useState<"audio" | "video">("video");
@@ -296,7 +316,14 @@ export function useWebRTC() {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            socket.emit("callUser", { to: targetUserId, conversationId, offer, callType: type, callId });
+            await waitForIceGathering(pc);
+            if (pcRef.current !== pc) return;            // call was cancelled meanwhile
+            const local = pc.localDescription!;
+            socket.emit("callUser", {
+                to: targetUserId, conversationId,
+                offer: { type: local.type, sdp: local.sdp },
+                callType: type, callId,
+            });
         } catch (error) {
             console.error("Failed to start call:", error);
             setCallError(error instanceof Error ? error.message : "Failed to start call");
@@ -333,7 +360,14 @@ export function useWebRTC() {
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            socket.emit("answerCall", { to: from, conversationId, answer, callId });
+            await waitForIceGathering(pc);
+            if (pcRef.current !== pc) return;
+            const local = pc.localDescription!;
+            socket.emit("answerCall", {
+                to: from, conversationId,
+                answer: { type: local.type, sdp: local.sdp },
+                callId,
+            });
             setIncomingCall(null);
         } catch (error) {
             console.error("Failed to accept call:", error);
