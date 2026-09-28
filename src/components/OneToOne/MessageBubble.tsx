@@ -13,6 +13,8 @@ interface MessageBubbleProps {
     isEditing: boolean;
     editText: string;
     isMenuOpen: boolean;
+    username: string;
+    selectedUserName: string;
     onToggleSelect: (messageId: string) => void;
     onStartEdit: (msg: Message) => void;
     onEditTextChange: (value: string) => void;
@@ -127,6 +129,8 @@ export default function MessageBubble({
     msg,
     mine,
     selectionMode,
+    username,
+    selectedUserName,
     isSelected,
     isEditing,
     editText,
@@ -250,7 +254,11 @@ export default function MessageBubble({
 
                             {msg.replyTo && (
                                 <ReplyMessagePreview
-                                    senderName={msg.replyTo.senderId}
+                                    senderName={
+                                        msg.replyTo.senderId === username
+                                            ? "You"
+                                            : selectedUserName
+                                    }
                                     text={
                                         msg.replyTo.text ||
                                         (msg.replyTo.type === "image"

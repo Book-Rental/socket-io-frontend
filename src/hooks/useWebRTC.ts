@@ -3,10 +3,10 @@ import { socket } from "../socket";
 
 const ICE_SERVERS: RTCIceServer[] = [
     { urls: "stun:stun.relay.metered.ca:80" },
-    { urls: "turn:global.relay.metered.ca:80", username: "1607abc84a56877e94776a0d", credential: "vEC/m+3L/7oulvYF" },
-    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "1607abc84a56877e94776a0d", credential: "vEC/m+3L/7oulvYF" },
-    { urls: "turn:global.relay.metered.ca:443", username: "1607abc84a56877e94776a0d", credential: "vEC/m+3L/7oulvYF" },
-    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "1607abc84a56877e94776a0d", credential: "vEC/m+3L/7oulvYF" },
+    { urls: "turn:global.relay.metered.ca:80", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
+    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
+    { urls: "turn:global.relay.metered.ca:443", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
+    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS },
 ];
 
 const DISCONNECT_GRACE_MS = 6000;
