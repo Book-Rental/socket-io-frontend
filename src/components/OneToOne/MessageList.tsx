@@ -108,6 +108,8 @@ export default function MessageList({
                             key={messageId}
                             msg={msg}
                             mine={msg.senderId === username}
+                            selectedUserName={selectedUserName}
+                            username={username}
                             selectionMode={selectionMode}
                             isSelected={selectedMessageIds.has(messageId)}
                             isEditing={editingMessageId === messageId}     // was msg.id
