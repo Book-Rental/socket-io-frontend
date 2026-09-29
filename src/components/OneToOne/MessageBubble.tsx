@@ -4,6 +4,7 @@ import { formatDuration, formatFileSize, linkifyText } from "./MessageUtils";
 import FormattedMessage from "../FormattedMessage";
 import MessageActions from "./MessageActions";
 import ReplyMessagePreview from "./ReplyMessagePreview";
+import { formatMessageDateTime } from "../../utils/MessageUtils";
 
 interface MessageBubbleProps {
     msg: Message;
@@ -280,10 +281,7 @@ export default function MessageBubble({
 
                     <div className="mt-1 flex items-center gap-1 text-[10px] opacity-60">
                         <span>
-                            {new Date(msg.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
+                            {formatMessageDateTime(msg.createdAt)}
                         </span>
 
                         {mine && !msg.deletedForEveryone && !msg.deletedForMe && (

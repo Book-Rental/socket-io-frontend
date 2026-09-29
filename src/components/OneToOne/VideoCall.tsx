@@ -32,7 +32,8 @@ export default function VideoCall({
     const [isMinimized, setIsMinimized] = useState(false);
     const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
     const localVideoRef = useRef<HTMLVideoElement | null>(null);
-
+    const [callDuration, setCallDuration] = useState(0);
+    const callStartTimeRef = useRef<number | null>(null);
     useEffect(() => {
         const el = remoteVideoRef.current;
         if (!el || el.srcObject === remoteStream) return;
@@ -55,11 +56,41 @@ export default function VideoCall({
         }
     }, [localStream]);
 
+    useEffect(() => {
+        if (callStatus !== "connected") {
+            callStartTimeRef.current = null;
+            setCallDuration(0);
+            return;
+        }
+
+        callStartTimeRef.current = Date.now();
+        setCallDuration(0);
+
+        const interval = setInterval(() => {
+            if (callStartTimeRef.current) {
+                setCallDuration(
+                    Math.floor(
+                        (Date.now() - callStartTimeRef.current) / 1000
+                    )
+                );
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [callStatus]);
+
     if (callStatus === "idle") return null;
 
     const showRemoteVideo = callType === "video" && Boolean(remoteStream);
     const showLocalPreview = callType === "video" && Boolean(localStream) && !isMinimized;
+    const formatCallDuration = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
 
+        return `${String(minutes).padStart(2, "0")}:${String(
+            remainingSeconds
+        ).padStart(2, "0")}`;
+    };
     // "ended" (or a real callError) with nothing connected yet: show a brief
     // status card instead of just vanishing — this is what was missing.
     if (callStatus === "ended" || (callError && callStatus !== "connected" && callStatus !== "calling")) {
@@ -112,7 +143,7 @@ export default function VideoCall({
                                 <p className="mt-1 text-xs text-slate-400">
                                     {callStatus === "calling" && "Calling..."}
                                     {callStatus === "ringing" && "Ringing..."}
-                                    {callStatus === "connected" && "Connected"}
+                                    {callStatus === "connected" && formatCallDuration(callDuration)}
                                 </p>
                             </div>
                         )}
